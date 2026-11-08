@@ -430,17 +430,9 @@ public sealed partial class MainViewModel : ObservableObject
             row.ApplyStatus(status);
             if (status.Error is not null)
                 Log($"❌ {row.Name}: {status.Error}");
+            if (status.MkvToolNixMissing)
+                WarnMkvToolNixMissing(status.Error!);
             return true;
-        }
-        catch (MkvToolNixNotFoundException ex)
-        {
-            row.SetScanError("No se encontró MKVToolNix: indícalo en Ajustes.");
-            Log("❌ " + ex.Message);
-            if (!_mkvToolNixWarningShown)
-            {
-                _mkvToolNixWarningShown = true;
-                _dialogs.ShowError(ex.Message + "\n\nPuedes indicar la carpeta en Ajustes → MKVToolNix.", "MKVToolNix no encontrado");
-            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -448,6 +440,16 @@ public sealed partial class MainViewModel : ObservableObject
             LogException(row.Name, ex);
         }
         return false;
+    }
+
+    /// <summary>Sin MKVToolNix solo fallan los .mkv (los .mp4 siguen); se avisa una vez hasta que cambien los Ajustes.</summary>
+    private void WarnMkvToolNixMissing(string message)
+    {
+        if (_mkvToolNixWarningShown)
+            return;
+        _mkvToolNixWarningShown = true;
+        _dialogs.ShowError(message + "\n\nLos .mkv no se pueden procesar hasta que lo instales o indiques la carpeta en "
+                           + "Ajustes → MKVToolNix. Los .mp4 se procesan igualmente.", "MKVToolNix no encontrado");
     }
 
     [RelayCommand(CanExecute = nameof(CanClearList))]
@@ -585,10 +587,6 @@ public sealed partial class MainViewModel : ObservableObject
         catch (OperationCanceledException)
         {
             outcome = new VideoOutcome { Status = VideoOutcomeStatus.Cancelled, Detail = "cancelado; el avance quedó guardado (reanudable)" };
-        }
-        catch (MkvToolNixNotFoundException ex)
-        {
-            outcome = new VideoOutcome { Status = VideoOutcomeStatus.Failed, Detail = ex.Message, IsConfiguration = true };
         }
         catch (Exception ex)
         {

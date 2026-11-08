@@ -106,13 +106,9 @@ public sealed class VideoProcessor
         {
             return new VideoOutcome { Status = VideoOutcomeStatus.Cancelled, Detail = "cancelado durante la extracción" };
         }
-        catch (MkvToolNixNotFoundException ex)
+        catch (Exception ex) when (ex is MkvToolNixNotFoundException or FfmpegNotFoundException)
         {
-            return new VideoOutcome { Status = VideoOutcomeStatus.Failed, Detail = ex.Message, IsConfiguration = true };
-        }
-        catch (FfmpegNotFoundException ex)
-        {
-            // Solo afecta a los .mp4: la cola sigue con los .mkv.
+            // Solo afecta a los videos de ese formato (.mkv o .mp4): la cola sigue con los demás.
             return new VideoOutcome { Status = VideoOutcomeStatus.Failed, Detail = ex.Message };
         }
 

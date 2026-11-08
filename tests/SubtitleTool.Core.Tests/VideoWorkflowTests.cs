@@ -131,6 +131,17 @@ public sealed class VideoWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task Processor_MkvToolNixMissingDuringExtraction_FailsOnlyThatVideo()
+    {
+        var processor = new VideoProcessor(() => throw new MkvToolNixNotFoundException("sin mkv"),
+            _ => throw new InvalidOperationException("no debe crear cliente"), _jobs, _logs);
+        var outcome = await processor.ProcessAsync(Status(englishExists: false), new VideoProcessingOptions());
+        Assert.Equal(VideoOutcomeStatus.Failed, outcome.Status);
+        Assert.Equal("sin mkv", outcome.Detail);
+        Assert.False(outcome.StopsBatch);
+    }
+
+    [Fact]
     public async Task Processor_Cancelled_ReturnsCancelled()
     {
         WriteEnglish();

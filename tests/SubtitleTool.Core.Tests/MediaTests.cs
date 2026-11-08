@@ -201,7 +201,7 @@ public sealed class MediaTests : IDisposable
     }
 
     [Fact]
-    public async Task Scanner_Mp4WithoutFfmpeg_IsPerVideoError_ButMkvWithoutMkvToolNixThrows()
+    public async Task Scanner_MissingTool_IsPerVideoError_ForMp4AndMkv()
     {
         var toolkit = new MediaToolkit(runner: new RecordingRunner((_, _) => throw new InvalidOperationException("no debe ejecutarse")),
             locateMkv: _ => throw new MkvToolNixNotFoundException("sin mkv"),
@@ -212,7 +212,13 @@ public sealed class MediaTests : IDisposable
         Assert.Equal("sin ffmpeg", st.Error);
         Assert.Equal(VideoPlanKind.InspectError, VideoWorkflow.Plan(st, force: false).Kind);
 
-        await Assert.ThrowsAsync<MkvToolNixNotFoundException>(() => scanner.ScanVideoAsync(Path.Combine(_dir, "b.mkv")));
+        Assert.False(st.MkvToolNixMissing);
+
+        // Sin MKVToolNix solo falla ese .mkv (antes lanzaba y detenía toda la cola, aunque hubiera .mp4).
+        var mkv = await scanner.ScanVideoAsync(Path.Combine(_dir, "b.mkv"));
+        Assert.Equal("sin mkv", mkv.Error);
+        Assert.True(mkv.MkvToolNixMissing);
+        Assert.Equal(VideoPlanKind.InspectError, VideoWorkflow.Plan(mkv, force: false).Kind);
     }
 
     [Fact]

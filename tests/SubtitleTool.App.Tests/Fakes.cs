@@ -64,8 +64,8 @@ public sealed class FakeLibrary : ILibraryService
     {
         ScanCount++;
         LastTools = tools;
-        if (MkvMissing)
-            throw new MkvToolNixNotFoundException("No se encontró MKVToolNix (prueba).");
+        if (MkvMissing && !VideoFormats.IsMp4(videoPath))
+            return Task.FromResult(new VideoStatus { VideoPath = videoPath, Error = "No se encontró MKVToolNix (prueba).", MkvToolNixMissing = true });
         return Task.FromResult(Statuses.TryGetValue(videoPath, out var f) ? f() : TestVideos.Translatable(videoPath));
     }
 

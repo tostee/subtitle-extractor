@@ -3,6 +3,12 @@
 Formato: una sección `## [X.Y.Z] - AAAA-MM-DD` por versión. Al publicar la etiqueta `vX.Y.Z`, la sección correspondiente
 se usa como notas de la Release (y es lo que la app muestra en «Novedades»).
 
+## [1.1.1] - 2026-11-08
+
+- Si falta MKVToolNix, ahora solo fallan los `.mkv`: los `.mp4` se siguen procesando. Antes la cola se detenía por
+  completo (y en la consola, `scan`, `extract` y `run` se cerraban en el primer `.mkv`).
+- El aviso «MKVToolNix no encontrado» se muestra una sola vez y explica que los `.mp4` se procesan igualmente.
+
 ## [1.1.0] - 2026-11-08
 
 Revisión de la traducción antes de guardar (fase 5).

@@ -21,6 +21,8 @@ public sealed record VideoStatus
     public bool ReviewPending { get; init; }
     /// <summary>Error al inspeccionar el archivo (mkvmerge/ffprobe falló, falta FFmpeg para un .mp4, etc.).</summary>
     public string? Error { get; init; }
+    /// <summary>El error es que falta MKVToolNix (solo afecta a este .mkv; los .mp4 siguen).</summary>
+    public bool MkvToolNixMissing { get; init; }
 }
 
 /// <summary>Recorre un archivo o carpeta (recursivo) y devuelve el estado de cada video (.mkv, .mp4, .m4v).</summary>
@@ -80,15 +82,17 @@ public sealed class LibraryScanner
         {
             info = await _inspector.InspectAsync(videoPath, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is MkvToolNixException or FfmpegException or FfmpegNotFoundException)
+        catch (Exception ex) when (ex is MkvToolNixException or MkvToolNixNotFoundException or FfmpegException or FfmpegNotFoundException)
         {
-            // Sin FFmpeg solo fallan los .mp4 (cada uno con su aviso); sin MKVToolNix se propaga: afecta a todos los .mkv.
+            // Una herramienta que falta solo afecta a los videos que la necesitan: sin FFmpeg fallan los .mp4 y sin
+            // MKVToolNix los .mkv, cada uno con su error; los demás se siguen procesando.
             return new VideoStatus
             {
                 VideoPath = videoPath,
                 SpanishExisting = spanish,
                 UntaggedSrt = untaggedSrt,
                 Error = ex.Message,
+                MkvToolNixMissing = ex is MkvToolNixNotFoundException,
             };
         }
 

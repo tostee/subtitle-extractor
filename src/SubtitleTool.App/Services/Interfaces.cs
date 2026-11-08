@@ -22,8 +22,8 @@ public interface ILibraryService
     /// <summary>Videos (.mkv, .mp4, .m4v) de un archivo o carpeta (recursiva).</summary>
     IReadOnlyList<string> FindVideos(string path);
 
-    /// <exception cref="SubtitleTool.Core.Mkv.MkvToolNixNotFoundException">Si es un .mkv y no se encuentra MKVToolNix.</exception>
-    /// <remarks>Un .mp4 sin FFmpeg no lanza: se devuelve con <see cref="VideoStatus.Error"/>.</remarks>
+    /// <remarks>Si falta la herramienta (MKVToolNix para un .mkv, FFmpeg para un .mp4) no lanza: se devuelve con
+    /// <see cref="VideoStatus.Error"/> (y <see cref="VideoStatus.MkvToolNixMissing"/> si es MKVToolNix).</remarks>
     Task<VideoStatus> ScanAsync(string videoPath, MediaToolDirectories tools, CancellationToken ct = default);
 
     /// <summary>Carpeta de MKVToolNix encontrada (la preferida si existe, si no autodetección), o null.</summary>

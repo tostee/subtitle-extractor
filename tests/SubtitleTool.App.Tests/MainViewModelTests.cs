@@ -51,17 +51,39 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task AddPaths_WithoutMkvToolNix_MarksRowsAndWarnsOnce()
+    public async Task AddPaths_WithoutMkvToolNix_MarksMkvRowsAndWarnsOnce()
     {
         var h = new Harness();
-        h.AddFolder(Folder, "a.mkv", "b.mkv");
+        h.AddFolder(Folder, "a.mkv", "b.mkv", "c.mp4");
         h.Library.MkvMissing = true;
         var vm = h.CreateMain();
 
         await vm.AddPathsAsync([Folder]);
 
-        Assert.All(vm.Videos, v => Assert.Equal(RowState.Failed, v.State));
-        Assert.Single(h.Dialogs.Errors);
+        Assert.Equal("error al inspeccionar", vm.Videos[0].TrackText);
+        Assert.Equal("error al inspeccionar", vm.Videos[1].TrackText);
+        Assert.NotEqual("error al inspeccionar", vm.Videos[2].TrackText);
+        Assert.Contains("Los .mp4 se procesan igualmente", Assert.Single(h.Dialogs.Errors));
+    }
+
+    [Fact]
+    public async Task ProcessAll_WithoutMkvToolNix_StillProcessesMp4()
+    {
+        var h = new Harness();
+        h.AddFolder(Folder, "a.mkv", "b.mp4", "c.mkv", "d.mp4");
+        h.Library.MkvMissing = true;
+        h.Processing.Handler = (st, _, _) => Task.FromResult(st.Error is not null
+            ? new VideoOutcome { Status = VideoOutcomeStatus.Failed, Detail = "error al inspeccionar: " + st.Error }
+            : new VideoOutcome { Status = VideoOutcomeStatus.Completed, Detail = "ok" });
+        var vm = h.CreateMain();
+        await vm.AddPathsAsync([Folder]);
+
+        await vm.ProcessAllCommand.ExecuteAsync(null);
+
+        Assert.Equal(["a.mkv", "b.mp4", "c.mkv", "d.mp4"], h.Processing.Processed);
+        Assert.Equal(["❌", "✅", "❌", "✅"], Assert.Single(h.Dialogs.Summaries).Select(r => r.Icon));
+        Assert.Single(h.Dialogs.Errors); // solo el aviso al analizar, ningún «No se puede continuar»
+        Assert.DoesNotContain(vm.LogLines, l => l.Contains("Se detuvo la cola"));
     }
 
     [Fact]
