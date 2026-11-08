@@ -1,5 +1,6 @@
 using SubtitleTool.Core.Media;
 using SubtitleTool.Core.Mkv;
+using SubtitleTool.Core.Review;
 
 namespace SubtitleTool.Core.Library;
 
@@ -16,6 +17,8 @@ public sealed record VideoStatus
     public IReadOnlyList<string> SpanishExisting { get; init; } = [];
     /// <summary>.srt con el mismo nombre que el video y sin código de idioma (no se supone qué contiene).</summary>
     public string? UntaggedSrt { get; init; }
+    /// <summary>Hay una traducción terminada esperando revisión (todavía sin .es.srt).</summary>
+    public bool ReviewPending { get; init; }
     /// <summary>Error al inspeccionar el archivo (mkvmerge/ffprobe falló, falta FFmpeg para un .mp4, etc.).</summary>
     public string? Error { get; init; }
 }
@@ -24,8 +27,13 @@ public sealed record VideoStatus
 public sealed class LibraryScanner
 {
     private readonly IVideoInspector _inspector;
+    private readonly ReviewStore _reviews;
 
-    public LibraryScanner(IVideoInspector inspector) => _inspector = inspector;
+    public LibraryScanner(IVideoInspector inspector, ReviewStore? reviews = null)
+    {
+        _inspector = inspector;
+        _reviews = reviews ?? ReviewStore.Default;
+    }
 
     /// <summary>Lista los videos (.mkv, .mp4, .m4v) de una ruta (archivo o carpeta recursiva), ordenados por ruta.</summary>
     public static IReadOnlyList<string> FindVideos(string path)
@@ -96,6 +104,8 @@ public sealed class LibraryScanner
             Selection = selection,
             EnglishPath = englishPath,
             EnglishExists = englishPath is not null && File.Exists(englishPath),
+            ReviewPending = englishPath is not null && englishPath.EndsWith(".srt", StringComparison.OrdinalIgnoreCase)
+                            && _reviews.HasValidDraft(englishPath),
             SpanishExisting = spanish,
             UntaggedSrt = untaggedSrt,
         };

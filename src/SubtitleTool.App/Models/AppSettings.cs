@@ -14,6 +14,8 @@ public sealed class AppSettings
     [JsonPropertyName("chunkSize")] public int ChunkSize { get; set; } = 150;
     [JsonPropertyName("timeoutMinutes")] public int TimeoutMinutes { get; set; } = 10;
     [JsonPropertyName("createPlainCopy")] public bool CreatePlainCopy { get; set; } = true;
+    /// <summary>No escribir el .es.srt al traducir: dejar un borrador para revisarlo lado a lado.</summary>
+    [JsonPropertyName("reviewBeforeSave")] public bool ReviewBeforeSave { get; set; }
     /// <summary>Carpeta de MKVToolNix elegida por el usuario; vacía = autodetección.</summary>
     [JsonPropertyName("mkvToolNixDirectory")] public string? MkvToolNixDirectory { get; set; }
     /// <summary>Carpeta de FFmpeg (ffmpeg.exe y ffprobe.exe, solo para .mp4); vacía = autodetección.</summary>
@@ -50,6 +52,7 @@ public sealed class AppSettings
             Effort = Effort,
             ChunkSize = ChunkSize,
             NoPlainCopy = !CreatePlainCopy,
+            ReviewBeforeSave = ReviewBeforeSave,
         },
         Timeout = TimeSpan.FromMinutes(TimeoutMinutes),
     };

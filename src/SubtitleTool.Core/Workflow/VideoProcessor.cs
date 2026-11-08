@@ -13,6 +13,8 @@ public enum VideoOutcomeStatus
     Failed,
     /// <summary>Cancelado por el usuario; el progreso quedó guardado.</summary>
     Cancelled,
+    /// <summary>Traducida; espera revisión antes de escribir el .es.srt.</summary>
+    PendingReview,
 }
 
 /// <summary>Resultado de procesar un video (extraer si falta → traducir si falta).</summary>
@@ -80,6 +82,8 @@ public sealed class VideoProcessor
                 break;
             case VideoPlanKind.AlreadyTranslated:
                 return new VideoOutcome { Status = VideoOutcomeStatus.Skipped, Detail = plan.Reason };
+            case VideoPlanKind.PendingReview:
+                return new VideoOutcome { Status = VideoOutcomeStatus.PendingReview, Detail = plan.Reason };
             case VideoPlanKind.InspectError:
                 return new VideoOutcome { Status = VideoOutcomeStatus.Failed, Detail = $"{plan.Reason}: {st.Error}" };
             default:
@@ -170,6 +174,7 @@ public sealed class VideoProcessor
             {
                 TranslationStatus.Completed => VideoOutcomeStatus.Completed,
                 TranslationStatus.SkippedExists => VideoOutcomeStatus.Skipped,
+                TranslationStatus.PendingReview => VideoOutcomeStatus.PendingReview,
                 _ => VideoOutcomeStatus.Failed,
             },
             Detail = VideoWorkflow.ResultDetail(r, options.IsClaudeCode),

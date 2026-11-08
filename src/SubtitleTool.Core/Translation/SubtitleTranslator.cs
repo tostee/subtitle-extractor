@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using SubtitleTool.Core.Review;
 using SubtitleTool.Core.Srt;
 
 namespace SubtitleTool.Core.Translation;
@@ -15,13 +16,15 @@ public sealed class SubtitleTranslator
     private readonly TranslationOptions _options;
     private readonly string _jobsRoot;
     private readonly ModelPricing _pricing;
+    private readonly ReviewStore _reviews;
     private ITranslationLog _log = NullTranslationLog.Instance;
 
     private TokenUsage _usage = TokenUsage.Zero;
     private readonly List<string> _warnings = [];
 
-    public SubtitleTranslator(ITranslationClient client, TranslationOptions options, string? jobsRoot = null)
+    public SubtitleTranslator(ITranslationClient client, TranslationOptions options, string? jobsRoot = null, ReviewStore? reviews = null)
     {
+        _reviews = reviews ?? ReviewStore.Default;
         if (options.ChunkSize < 1)
             throw new ArgumentException("El tamaño de tramo debe ser >= 1.", nameof(options));
         _client = client;
@@ -172,6 +175,20 @@ public sealed class SubtitleTranslator
             };
         }
 
+        switch (_reviews.GetState(paths.EnglishPath))
+        {
+            case DraftState.Valid when !_options.Force:
+                return Result(TranslationStatus.PendingReview, paths, 0, [], null,
+                    "Ya hay una traducción pendiente de revisión; no se vuelve a traducir (usa --force para descartarla).")
+                    with { OutputPath = _reviews.DraftPath(paths.EnglishPath) };
+            case DraftState.Stale:
+                // Se hizo con otro inglés: ya no encaja con este, así que no sirve.
+                _warnings.Add("Había un borrador de revisión hecho con otra versión del subtítulo en inglés: se descarta.");
+                _reviews.Delete(paths.EnglishPath);
+                break;
+            // Válido con --force: se conserva hasta que haya un borrador o un .es.srt nuevo (si se cancela, no se pierde).
+        }
+
         _log.Write($"Trabajo: {paths.EnglishPath} → {paths.SpanishPath}; backend={_options.Backend}, modelo={_options.Model}, esfuerzo={_options.Effort}, tramo={_options.ChunkSize}, prompt v{TranslationPrompts.PromptVersion}");
 
         var doc = await SrtParser.ParseFileAsync(paths.EnglishPath, ct).ConfigureAwait(false);
@@ -253,7 +270,21 @@ public sealed class SubtitleTranslator
                 $"La validación final encontró {report.ErrorCount} error(es). No se escribió el .es.srt.");
         }
 
+        if (_options.ReviewBeforeSave)
+        {
+            await _reviews.SaveDraftAsync(paths, translated, !_options.NoPlainCopy, edited: [],
+                replacesExisting: File.Exists(paths.SpanishPath), ct: ct).ConfigureAwait(false);
+            store.Delete();
+            var draft = _reviews.DraftPath(paths.EnglishPath);
+            _log.Write($"Borrador para revisar: {draft} ({translated.Blocks.Count} bloques, {report.WarningCount} advertencias de estilo). " +
+                       $"El .es.srt se escribirá al guardar la revisión. {FormatUsage(_usage)}, coste estimado ${Cost(_usage):0.0000}");
+            return Result(TranslationStatus.PendingReview, paths, doc.Blocks.Count, failures, report,
+                "Traducción lista para revisar antes de guardar.") with { OutputPath = draft };
+        }
+
         await SrtWriter.WriteFileAsync(paths.SpanishPath, translated, ct).ConfigureAwait(false);
+        if (_reviews.HasDraft(paths.EnglishPath))
+            _reviews.Delete(paths.EnglishPath); // un borrador anterior ya no sirve: hay .es.srt nuevo (--force)
         _log.Write($"Escrito: {paths.SpanishPath} ({translated.Blocks.Count} bloques, {report.WarningCount} advertencias de estilo)");
 
         var plain = PlainCopyStatus.Disabled;

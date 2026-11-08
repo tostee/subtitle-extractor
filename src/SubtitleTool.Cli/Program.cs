@@ -104,12 +104,18 @@ namespace SubtitleTool.Cli
                   --force                    sobrescribe el .es.srt si existe
                   --no-plain-copy            no crea la copia .srt sin idioma
                   --regenerate-glossary      regenera <video>.glossary.json
+                  --review                   no escribe el .es.srt: deja un borrador para revisarlo lado a lado
+                                             en la ventana (o aceptarlo con «subtool review»)
 
               subtool glossary <archivo.en.srt> [--backend B] [--model M] [--regenerate-glossary]
                   Genera (si no existe) y muestra el glosario editable.
 
               subtool run <carpeta|video> [opciones de translate]
                   Escanea, extrae el inglés y traduce lo que no tenga .es.srt. Resumen por video.
+
+              subtool review <archivo.en.srt> [--accept | --discard]
+                  Muestra el borrador pendiente de revisión (bloques editados y avisos); --accept lo guarda como
+                  .es.srt (validándolo antes) y --discard lo descarta (habrá que volver a traducir).
 
               subtool key set|status|clear
                   Guarda (cifrada con DPAPI), muestra el origen (…últimos 4) o borra la clave de API
@@ -150,6 +156,7 @@ namespace SubtitleTool.Cli
                 "glossary" => await TranslationCommands.GlossaryAsync(rest, ct),
                 "run" => await TranslationCommands.RunAsync(rest, ct),
                 "key" => TranslationCommands.Key(rest),
+                "review" => await ReviewCommands.RunAsync(rest, ct),
                 "doctor" => await TranslationCommands.DoctorAsync(rest, ct),
                 "version" or "--version" => UpdateCommands.Version(),
                 "update" => await UpdateCommands.UpdateAsync(rest, ct),
@@ -237,6 +244,9 @@ namespace SubtitleTool.Cli
             Console.WriteLine(st.SpanishExisting.Count > 0
                 ? $"   Español: ✅ {string.Join(", ", st.SpanishExisting.Select(Path.GetFileName))}"
                 : "   Español: ⬜ sin traducción (.es.srt / .es.sdh.srt)");
+
+            if (st.ReviewPending)
+                Console.WriteLine("   📝 Traducción terminada pendiente de revisión (aún sin .es.srt): subtool review <.en.srt> --accept|--discard");
 
             if (st.UntaggedSrt is not null)
                 Console.WriteLine($"   ℹ️  srt sin idioma: {Path.GetFileName(st.UntaggedSrt)}");

@@ -30,6 +30,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _timeoutText = settings.TimeoutMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture);
         _createPlainCopy = settings.CreatePlainCopy;
         _checkForUpdates = settings.CheckForUpdates;
+        _reviewBeforeSave = settings.ReviewBeforeSave;
         _mkvToolNixDirectory = settings.MkvToolNixDirectory ?? "";
         _ffmpegDirectory = settings.FfmpegDirectory ?? "";
         var detected = library.DetectMkvToolNix();
@@ -57,6 +58,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _timeoutText;
     [ObservableProperty] private bool _createPlainCopy;
     [ObservableProperty] private bool _checkForUpdates;
+    [ObservableProperty] private bool _reviewBeforeSave;
     [ObservableProperty] private string _mkvToolNixDirectory;
     [ObservableProperty] private string _ffmpegDirectory;
     [ObservableProperty] private string _errorText = "";
@@ -213,6 +215,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             TimeoutMinutes = timeout,
             CreatePlainCopy = CreatePlainCopy,
             CheckForUpdates = CheckForUpdates,
+            ReviewBeforeSave = ReviewBeforeSave,
             MkvToolNixDirectory = dir,
             FfmpegDirectory = ffmpegDir,
         }.Normalize();

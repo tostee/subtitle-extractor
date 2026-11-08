@@ -187,6 +187,14 @@ public sealed class FakeDialogs : IDialogService
     public void ShowText(string title, string text) => Texts.Add((title, text));
     public bool ShowSettings(SettingsViewModel viewModel) => OnSettings?.Invoke(viewModel) ?? false;
     public void ShowGlossaryEditor(GlossaryEditorViewModel viewModel) => GlossaryShown = viewModel;
+    /// <summary>Lo que hace el usuario en la ventana de revisión; la ventana real es modal, así que se espera a que termine.</summary>
+    public Func<ReviewViewModel, Task>? OnReview { get; set; }
+    public ReviewViewModel? ReviewShown { get; private set; }
+    public void ShowReview(ReviewViewModel viewModel)
+    {
+        ReviewShown = viewModel;
+        OnReview?.Invoke(viewModel).GetAwaiter().GetResult();
+    }
     public void ShowSummary(IReadOnlyList<SummaryRow> rows) => Summaries.Add(rows);
 }
 
@@ -240,8 +248,12 @@ public sealed class Harness
     public FakeDialogs Dialogs { get; } = new();
     public FakeActivityLog ActivityLog { get; } = new();
     public FakeUpdates Updates { get; } = new();
+    /// <summary>Borradores en una carpeta temporal (nunca en %LOCALAPPDATA%).</summary>
+    public string ReviewRoot { get; } = Path.Combine(Path.GetTempPath(), "subtool-review-tests-" + Guid.NewGuid().ToString("N"));
+    public ReviewServiceAdapter Reviews => _reviews ??= new ReviewServiceAdapter(new SubtitleTool.Core.Review.ReviewStore(ReviewRoot));
+    private ReviewServiceAdapter? _reviews;
 
-    public MainViewModel CreateMain() => new(Settings, Library, Processing, Glossary, Doctor, ApiKeys, Dialogs, ActivityLog, Updates);
+    public MainViewModel CreateMain() => new(Settings, Library, Processing, Glossary, Doctor, ApiKeys, Dialogs, ActivityLog, Updates, Reviews);
 
     /// <summary>Carpeta falsa con N videos.</summary>
     public IReadOnlyList<string> AddFolder(string folder, params string[] names)

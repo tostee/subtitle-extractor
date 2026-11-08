@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using SubtitleTool.App.Models;
 using SubtitleTool.App.Services;
 using SubtitleTool.Core.Media;
+using SubtitleTool.Core.Review;
 using SubtitleTool.Core.Mkv;
 using SubtitleTool.Core.Translation;
 using SubtitleTool.Core.Updates;
@@ -27,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IActivityLog _activityLog;
     private readonly IUpdateService _updates;
+    private readonly IReviewService _reviews;
     private bool _checkingUpdates;
 
     private AppSettings _settings;
@@ -42,8 +44,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     public MainViewModel(ISettingsStore settingsStore, ILibraryService library, IVideoProcessingService processing,
         IGlossaryService glossary, IDoctorService doctor, IApiKeyService apiKeys, IDialogService dialogs,
-        IActivityLog? activityLog = null, IUpdateService? updates = null)
+        IActivityLog? activityLog = null, IUpdateService? updates = null, IReviewService? reviews = null)
     {
+        _reviews = reviews ?? new ReviewServiceAdapter();
         _activityLog = activityLog ?? NullActivityLog.Instance;
         _updates = updates ?? NullUpdateService.Instance;
         _settingsStore = settingsStore;
@@ -150,6 +153,93 @@ public sealed partial class MainViewModel : ObservableObject
         Log(ffmpeg is null
             ? $"ℹ️ No se encontró FFmpeg: solo hace falta para los .mp4 (winget install {FfmpegLocator.WingetPackage} o Ajustes → FFmpeg)."
             : $"FFmpeg: {ffmpeg}");
+    }
+
+    // ------------------------------------------------------------------ revisión
+
+    /// <summary>Abre la ventana «Revisar traducción» (borrador pendiente o .es.srt ya guardado).</summary>
+    [RelayCommand]
+    private async Task ReviewAsync(VideoItemViewModel? row)
+    {
+        if (row is null)
+            return;
+        if (row.IsBusy || row.IsQueued)
+        {
+            _dialogs.ShowInfo("Este video se está procesando; espera a que termine para revisarlo.");
+            return;
+        }
+        if (row.EnglishPath is not { } english || !english.EndsWith(".srt", StringComparison.OrdinalIgnoreCase))
+        {
+            _dialogs.ShowInfo("Este video no tiene una pista en inglés .srt: no hay traducción que revisar.");
+            return;
+        }
+
+        ReviewSession session;
+        try
+        {
+            session = await _reviews.OpenAsync(english);
+        }
+        catch (ReviewException ex) when (ex.IsStaleDraft)
+        {
+            // El borrador ya no encaja con el inglés: la única salida es descartarlo (y volver a traducir).
+            if (_dialogs.Confirm(ex.Message + "\n\n¿Descartar el borrador ahora?", "Revisar traducción"))
+            {
+                _reviews.Discard(english);
+                Log($"🗑️ {row.Name}: borrador de revisión descartado (el inglés había cambiado).");
+                row.ApplyReviewOutcome(ReviewOutcome.Discarded);
+                await RescanAfterReviewAsync(row);
+            }
+            return;
+        }
+        catch (ReviewException ex)
+        {
+            _dialogs.ShowInfo(ex.Message, "Revisar traducción");
+            return;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SubtitleTool.Core.Srt.SrtParseException or ArgumentException)
+        {
+            LogException($"No se pudo abrir la revisión de {row.Name}", ex);
+            _dialogs.ShowError("No se pudo abrir la revisión: " + ex.Message);
+            return;
+        }
+
+        var vm = new ReviewViewModel(session, _reviews, _dialogs);
+        _dialogs.ShowReview(vm);
+        if (vm.Outcome == ReviewOutcome.None)
+            return;
+
+        row.ApplyReviewOutcome(vm.Outcome);
+        Log(vm.Outcome switch
+        {
+            ReviewOutcome.Saved => $"✅ {row.Name}: traducción revisada y guardada ({session.EditedIds.Count()} bloque(s) editados).",
+            ReviewOutcome.DraftSaved => $"📝 {row.Name}: revisión guardada como borrador.",
+            _ => $"🗑️ {row.Name}: traducción descartada.",
+        });
+        await RescanAfterReviewAsync(row);
+    }
+
+    private async Task RescanAfterReviewAsync(VideoItemViewModel row)
+    {
+        try
+        {
+            row.ApplyStatus(await _library.ScanAsync(row.VideoPath, _settings.Tools, CancellationToken.None));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            row.AddLog("No se pudo actualizar el estado: " + ex.Message);
+        }
+    }
+
+    /// <summary>Doble clic en una fila: revisar si está pendiente; si no, ver su log.</summary>
+    [RelayCommand]
+    private Task OpenRowAsync(VideoItemViewModel? row)
+    {
+        if (row is null)
+            return Task.CompletedTask;
+        if (row.IsReviewPending && !row.IsBusy)
+            return ReviewAsync(row);
+        ViewLog(row);
+        return Task.CompletedTask;
     }
 
     // ------------------------------------------------------------------ actualizaciones
@@ -468,6 +558,10 @@ public sealed partial class MainViewModel : ObservableObject
                 _dialogs.ShowError(stopOutcome.Detail + "\n\nSe detuvo la cola; el avance quedó guardado.", "No se puede continuar");
             }
         }
+
+        var toReview = processed.Count(r => r.LastOutcome?.Status == VideoOutcomeStatus.PendingReview);
+        if (toReview > 0)
+            Log($"📝 {toReview} traducción(es) lista(s) para revisar: doble clic en la fila (o clic derecho → «Revisar traducción…»).");
 
         if (showSummary && processed.Count > 0)
             _dialogs.ShowSummary(processed.Select(r => r.ToSummaryRow()).ToList());

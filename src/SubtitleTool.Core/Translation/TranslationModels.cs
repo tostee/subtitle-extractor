@@ -119,6 +119,8 @@ public sealed record TranslationOptions
     public bool Force { get; init; }
     public bool NoPlainCopy { get; init; }
     public bool RegenerateGlossary { get; init; }
+    /// <summary>No escribir el .es.srt: dejar un borrador para revisarlo lado a lado (ventana «Revisar traducción»).</summary>
+    public bool ReviewBeforeSave { get; init; }
 }
 
 public sealed record FailedBlock(int Id, string Reason);
@@ -129,6 +131,8 @@ public enum TranslationStatus
     /// <summary>El .es.srt ya existía y no se pidió --force.</summary>
     SkippedExists,
     Failed,
+    /// <summary>Traducida y validada, pero guardada como borrador para revisarla antes de crear el .es.srt.</summary>
+    PendingReview,
 }
 
 public enum PlainCopyStatus
@@ -138,6 +142,8 @@ public enum PlainCopyStatus
     /// <summary>Ya había un .srt sin idioma: no se tocó.</summary>
     SkippedExists,
     Disabled,
+    /// <summary>No se pudo escribir (archivo bloqueado o sin permisos); el .es.srt sí se guardó.</summary>
+    Failed,
 }
 
 public sealed record TranslationResult

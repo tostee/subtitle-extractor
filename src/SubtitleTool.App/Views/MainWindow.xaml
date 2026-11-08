@@ -76,6 +76,8 @@
                                   IsEnabled="{Binding SelectedVideo.HasFailed, FallbackValue=False}" />
                         <Separator />
                         <MenuItem Header="Abrir carpeta" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Revisar traducción…" Command="{Binding ReviewCommand}" CommandParameter="{Binding SelectedVideo}"
+                                  IsEnabled="{Binding SelectedVideo.CanReview, FallbackValue=False}" FontWeight="SemiBold" />
                         <MenuItem Header="Abrir glosario…" Command="{Binding OpenGlossaryCommand}" CommandParameter="{Binding SelectedVideo}" />
                         <Separator />
                         <MenuItem Header="Ver log" Command="{Binding ViewLogCommand}" CommandParameter="{Binding SelectedVideo}" />

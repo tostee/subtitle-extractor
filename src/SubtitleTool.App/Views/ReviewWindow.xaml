@@ -1,0 +1,121 @@
+<Window x:Class="SubtitleTool.App.Views.ReviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SubtitleTool.App.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:ReviewViewModel}"
+        Title="{Binding Title}" Width="1250" Height="800" MinWidth="900" MinHeight="500"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Style="{StaticResource AppWindow}" Closing="OnClosing">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="{Binding PathsText}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Text="Corrige el español directamente en la tabla. Los avisos son orientativos (más de 42 caracteres por línea, más de 2 líneas, etiquetas o guiones distintos al inglés); solo un bloque vacío impide guardar. En una celda, Intro hace un salto de línea." />
+        </StackPanel>
+
+        <!-- Filtros -->
+        <DockPanel Grid.Row="1" Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Right" Text="{Binding SummaryText}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0" />
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Buscar" VerticalAlignment="Center" Style="{StaticResource Muted}" Margin="0,0,6,0" />
+                <TextBox Width="260" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
+                         ToolTip="Busca en inglés y en español (sin distinguir mayúsculas ni tildes) o escribe el número de bloque." />
+                <CheckBox Content="Solo con avisos" IsChecked="{Binding OnlyIssues}" VerticalAlignment="Center" Margin="14,0,0,0" />
+                <CheckBox Content="Solo editados" IsChecked="{Binding OnlyEdited}" VerticalAlignment="Center" Margin="14,0,0,0" />
+                <Button Content="Siguiente aviso ↓" Command="{Binding NextIssueCommand}" Margin="14,0,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <DataGrid x:Name="BlocksGrid" Grid.Row="2" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                  IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                  SelectionMode="Single" SelectionUnit="FullRow" RowHeight="NaN" MinRowHeight="34"
+                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                  VirtualizingPanel.ScrollUnit="Pixel" SelectionChanged="OnSelectionChanged"
+                  IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="#" Width="56">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Number}" Style="{StaticResource CellText}" Foreground="{StaticResource MutedText}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Tiempo" Width="118">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Timing}" Style="{StaticResource CellText}" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{StaticResource MutedText}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Inglés" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding English}" TextWrapping="Wrap" Margin="6,6" VerticalAlignment="Top" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Español (editable)" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Spanish, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnly}"
+                                     AcceptsReturn="True" TextWrapping="Wrap" BorderThickness="1" Margin="2,3" Padding="4,3"
+                                     GotKeyboardFocus="OnEditorFocus">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEdited}" Value="True">
+                                                <Setter Property="Background" Value="#FFF8E1" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#DC2626" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Avisos" Width="190">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="6,6">
+                                <TextBlock Text="{Binding IssuesText}" TextWrapping="Wrap" FontSize="12" />
+                                <TextBlock Text="✏️ editado" FontSize="11" Foreground="#B45309" Margin="0,2,0,0"
+                                           Visibility="{Binding IsEdited, Converter={StaticResource BoolToVis}}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <DockPanel Grid.Row="3" Margin="0,12,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Descartar traducción…" Command="{Binding DiscardCommand}" Margin="0,0,16,0"
+                        Visibility="{Binding IsDraft, Converter={StaticResource BoolToVis}}"
+                        ToolTip="Borra el borrador: habrá que volver a traducir el video." />
+                <Button Content="Guardar borrador" Command="{Binding SaveDraftCommand}" Margin="0,0,6,0"
+                        Visibility="{Binding IsDraft, Converter={StaticResource BoolToVis}}"
+                        ToolTip="Guarda tus cambios sin crear el .es.srt, para terminar la revisión más tarde." />
+                <Button Content="Guardar .es.srt" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}" MinWidth="120" Margin="0,0,6,0" />
+                <Button Content="Cerrar" IsCancel="True" MinWidth="90" Click="OnCloseClick" />
+            </StackPanel>
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+        </DockPanel>
+    </Grid>
+</Window>

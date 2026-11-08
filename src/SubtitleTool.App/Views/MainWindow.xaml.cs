@@ -31,6 +31,6 @@ public partial class MainWindow : Window
     private void OnGridDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (ViewModel is { SelectedVideo: { } row } vm)
-            vm.ViewLogCommand.Execute(row);
+            vm.OpenRowCommand.Execute(row);
     }
 }

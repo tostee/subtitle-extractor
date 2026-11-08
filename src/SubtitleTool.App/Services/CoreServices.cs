@@ -4,6 +4,7 @@ using SubtitleTool.App.Models;
 using SubtitleTool.Core.Diagnostics;
 using SubtitleTool.Core.Library;
 using SubtitleTool.Core.Media;
+using SubtitleTool.Core.Review;
 using SubtitleTool.Core.Mkv;
 using SubtitleTool.Core.Srt;
 using SubtitleTool.Core.Translation;
@@ -126,6 +127,18 @@ public sealed class DoctorServiceAdapter : IDoctorService
 {
     public Task<IReadOnlyList<DoctorCheck>> RunAsync(MediaToolDirectories tools, CancellationToken ct = default) =>
         Task.Run(() => new DoctorService(tools).RunAsync(ct), ct);
+}
+
+/// <summary>Revisión con archivos reales (en pruebas, con un <see cref="ReviewStore"/> en una carpeta temporal).</summary>
+public sealed class ReviewServiceAdapter : IReviewService
+{
+    private readonly ReviewService _service;
+    public ReviewServiceAdapter(ReviewStore? store = null) => _service = new ReviewService(store);
+    public bool HasDraft(string? englishPath) => _service.HasDraft(englishPath);
+    public Task<ReviewSession> OpenAsync(string englishPath, CancellationToken ct = default) => Task.Run(() => _service.OpenAsync(englishPath, ct), ct);
+    public Task SaveDraftAsync(ReviewSession session, CancellationToken ct = default) => Task.Run(() => _service.SaveDraftAsync(session, ct), ct);
+    public Task<ReviewSaveResult> SaveAsync(ReviewSession session, CancellationToken ct = default) => Task.Run(() => _service.SaveAsync(session, ct), ct);
+    public void Discard(string englishPath) => _service.Discard(englishPath);
 }
 
 public sealed class GitHubUpdateService : IUpdateService

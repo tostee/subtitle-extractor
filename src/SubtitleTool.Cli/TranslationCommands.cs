@@ -16,7 +16,7 @@ internal static class TranslationCommands
 {
     private static readonly HashSet<string> TranslateOptions = new(StringComparer.OrdinalIgnoreCase) { "backend", "model", "effort", "chunk", "timeout" };
     private static readonly HashSet<string> TranslateFlags = new(StringComparer.OrdinalIgnoreCase)
-        { "dry-run", "restart", "force", "no-plain-copy", "regenerate-glossary" };
+        { "dry-run", "restart", "force", "no-plain-copy", "regenerate-glossary", "review" };
 
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -65,6 +65,7 @@ internal static class TranslationCommands
             Restart = a.Has("restart"),
             Force = a.Has("force"),
             NoPlainCopy = a.Has("no-plain-copy"),
+            ReviewBeforeSave = a.Has("review"),
             RegenerateGlossary = a.Has("regenerate-glossary"),
         }, a.Has("dry-run"), timeout);
     }
@@ -215,6 +216,11 @@ internal static class TranslationCommands
                 foreach (var e in r.Validation?.Errors.Take(20) ?? [])
                     Console.WriteLine($"   - {e.Message}");
                 break;
+            case TranslationStatus.PendingReview:
+                Console.WriteLine($"📝 {r.Message}");
+                Console.WriteLine($"   Revísala en la ventana (clic derecho → «Revisar traducción…») o acéptala tal cual con:");
+                Console.WriteLine($"   subtool review \"{paths.EnglishPath}\" --accept");
+                break;
             default:
                 Console.WriteLine($"⏭️ {r.Message}");
                 break;
@@ -314,6 +320,10 @@ internal static class TranslationCommands
                     rows.Add([name, "⏭️", plan.Reason]);
                     Console.WriteLine("   ⏭️ Ya tiene traducción al español.");
                     continue;
+                case VideoPlanKind.PendingReview:
+                    rows.Add([name, "📝", plan.Reason]);
+                    Console.WriteLine($"   📝 Traducción pendiente de revisión (subtool review \"{st.EnglishPath}\" --accept para guardarla tal cual).");
+                    continue;
                 case VideoPlanKind.NoEnglish or VideoPlanKind.ImageOnly:
                     rows.Add([name, "❌", plan.Reason]);
                     Console.WriteLine($"   ❌ {plan.Reason}");
@@ -364,6 +374,7 @@ internal static class TranslationCommands
             {
                 TranslationStatus.Completed => "✅",
                 TranslationStatus.SkippedExists => "⏭️",
+                TranslationStatus.PendingReview => "📝",
                 _ => "❌",
             }, detail]);
             if (stop)

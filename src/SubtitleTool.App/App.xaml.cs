@@ -37,7 +37,7 @@ public partial class App : Application
 
         var dialogs = new DialogService();
         _main = new MainViewModel(new JsonSettingsStore(), new LibraryService(), new VideoProcessingService(),
-            new GlossaryService(), new DoctorServiceAdapter(), new ApiKeyService(), dialogs, activityLog, new GitHubUpdateService());
+            new GlossaryService(), new DoctorServiceAdapter(), new ApiKeyService(), dialogs, activityLog, new GitHubUpdateService(), new ReviewServiceAdapter());
         var window = new MainWindow { DataContext = _main };
         dialogs.Owner = window;
         MainWindow = window;

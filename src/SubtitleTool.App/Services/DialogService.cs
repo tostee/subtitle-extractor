@@ -88,6 +88,9 @@ public sealed class DialogService : IDialogService
     public void ShowGlossaryEditor(GlossaryEditorViewModel viewModel) =>
         new GlossaryWindow { Owner = ActiveOwner, DataContext = viewModel }.ShowDialog();
 
+    public void ShowReview(ReviewViewModel viewModel) =>
+        new ReviewWindow(viewModel) { Owner = ActiveOwner }.ShowDialog();
+
     public void ShowSummary(IReadOnlyList<SummaryRow> rows) =>
         new SummaryWindow { Owner = ActiveOwner, DataContext = rows }.ShowDialog();
 }

@@ -30,6 +30,7 @@ public sealed class StatusBrushConverter : IValueConverter
         { } s when s.StartsWith('✅') => Ok,
         { } s when s.StartsWith('❌') => Bad,
         "en curso" => Busy,
+        { } s when s.StartsWith("📝", StringComparison.Ordinal) => Busy,
         _ => Normal,
     };
 

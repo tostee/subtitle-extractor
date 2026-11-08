@@ -105,6 +105,28 @@ Usa la misma librería (`SubtitleTool.Core`) que la CLI, así que el resultado e
   «Guardar» valida antes de escribir `<video>.glossary.json` y «Regenerar…» lo vuelve a generar con Claude.
 - Para probar el flujo sin gastar límite ni dinero: abre la app con `SUBTOOL_FAKE_TRANSLATOR=1` (traductor falso).
 
+## Revisar antes de guardar (Fase 5)
+
+Opción «Ajustes → Revisar la traducción antes de guardar el .es.srt» (desactivada por defecto; en consola, `--review`).
+
+- Al terminar de traducir **no se crea el `.es.srt`**: se guarda un borrador en
+  `%LOCALAPPDATA%\SubtitleTool\revisiones` (fuera de la carpeta del video, para que el reproductor no lo tome por
+  terminado) y la fila queda «📝 revisar». La cola sigue con los demás videos sin esperar; un video pendiente de revisión
+  no se vuelve a traducir (ni gasta límite).
+- **Doble clic en la fila** (o clic derecho → «Revisar traducción…») abre la ventana de revisión: número, tiempos, inglés y
+  **español editable** lado a lado, con los avisos de cada bloque (más de 42 caracteres por línea, más de 2 líneas,
+  etiquetas o guiones distintos al inglés) que se recalculan mientras escribes. Filtros «Solo con avisos» y «Solo
+  editados», buscador (inglés y español, sin distinguir mayúsculas ni tildes, o número de bloque) y «Siguiente aviso»
+  (F3). Los bloques editados se resaltan.
+- **Guardar .es.srt** valida antes (solo un bloque vacío impide guardar), crea la copia `.srt` sin idioma si se pidió y
+  borra el borrador. Un borrador **nunca sobrescribe** un `.es.srt` existente.
+- **Guardar borrador** conserva tus cambios para terminar más tarde (se recuerda qué bloques editaste); **Descartar
+  traducción** borra el borrador para volver a traducir. Al cerrar con cambios sin guardar, pregunta.
+- También se puede abrir un `.es.srt` **ya guardado** para corregirlo: al guardar se sobrescribe dejando antes una copia
+  `.es.srt.bak`. Tiene que tener los mismos bloques que el inglés.
+- Consola: `subtool review <archivo.en.srt>` resume el borrador; `--accept` lo guarda tal cual (validándolo) y `--discard`
+  lo descarta. `scan` y `run` muestran los videos 📝 pendientes.
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -116,6 +138,7 @@ Usa la misma librería (`SubtitleTool.Core`) que la CLI, así que el resultado e
 | `subtool translate <archivo.en.srt> [opciones]` | Traduce al español con Claude → `.es.srt` (y copia `.srt` sin idioma si no existe). Reanudable. |
 | `subtool glossary <archivo.en.srt>` | Genera (si no existe) y muestra el glosario editable `<video>.glossary.json`. |
 | `subtool run <carpeta\|video> [opciones]` | Escanea → extrae el inglés → traduce lo que no tenga `.es.srt`. Resumen ✅/⏭️/❌ por video. |
+| `subtool review <archivo.en.srt> [--accept\|--discard]` | Traducción pendiente de revisión: muestra el resumen, la guarda como `.es.srt` (`--accept`) o la descarta (`--discard`). |
 | `subtool key set\|status\|clear` | Guarda la clave de API cifrada (solo para `--backend api`), muestra su origen (solo los últimos 4 caracteres) o la borra. |
 | `subtool version` / `subtool update [--check]` | Muestra la versión / busca una nueva en GitHub y la instala (con `--check`, solo informa). |
 | `subtool doctor` | Comprueba MKVToolNix, FFmpeg (informativo: solo para `.mp4`), Claude Code (versión y una llamada mínima con haiku) y si hay clave de API. ✅/❌ por punto. |
@@ -195,6 +218,7 @@ La clave nunca se guarda en texto plano ni se escribe en los logs.
 | `--force` | | Sobrescribe el `.es.srt` si ya existe. |
 | `--no-plain-copy` | | No crea la copia `Pelicula.srt` sin código de idioma. |
 | `--regenerate-glossary` | | Vuelve a generar el glosario aunque exista. |
+| `--review` | | No escribe el `.es.srt`: deja un borrador para revisarlo en la ventana (o aceptarlo con `subtool review`). |
 
 ### Cómo funciona
 

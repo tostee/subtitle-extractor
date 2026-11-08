@@ -32,6 +32,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock Grid.ColumnSpan="2" Text="Traducción" Style="{StaticResource SectionHeader}" />
 
@@ -58,6 +59,12 @@
 
                         <CheckBox Grid.Row="6" Grid.Column="1" Margin="0,8,0,0" IsChecked="{Binding CreatePlainCopy}"
                                   Content="Crear copia .srt sin idioma (si no existe ya)" />
+
+                        <StackPanel Grid.Row="7" Grid.Column="1" Margin="0,8,0,0">
+                            <CheckBox IsChecked="{Binding ReviewBeforeSave}" Content="Revisar la traducción antes de guardar el .es.srt" />
+                            <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="20,4,0,0"
+                                       Text="Al terminar, el video queda «📝 revisar»: doble clic en la fila para ver inglés y español lado a lado, corregir y guardar. La cola sigue con los demás videos sin esperar." />
+                        </StackPanel>
                     </Grid>
                 </Border>
 

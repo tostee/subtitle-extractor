@@ -2,6 +2,7 @@ using SubtitleTool.App.Models;
 using SubtitleTool.App.ViewModels;
 using SubtitleTool.Core.Library;
 using SubtitleTool.Core.Media;
+using SubtitleTool.Core.Review;
 using SubtitleTool.Core.Translation;
 using SubtitleTool.Core.Updates;
 using SubtitleTool.Core.Workflow;
@@ -30,6 +31,22 @@ public interface ILibraryService
 
     /// <summary>Carpeta de FFmpeg encontrada (la preferida si existe, si no autodetección), o null.</summary>
     string? DetectFfmpeg(string? preferred = null);
+}
+
+/// <summary>Revisión de traducciones (Core: <see cref="ReviewService"/>).</summary>
+public interface IReviewService
+{
+    bool HasDraft(string? englishPath);
+
+    /// <exception cref="ReviewException">No hay nada que revisar o no encaja bloque a bloque.</exception>
+    Task<ReviewSession> OpenAsync(string englishPath, CancellationToken ct = default);
+
+    Task SaveDraftAsync(ReviewSession session, CancellationToken ct = default);
+
+    /// <exception cref="ReviewException">Errores de validación o el destino ya existe.</exception>
+    Task<ReviewSaveResult> SaveAsync(ReviewSession session, CancellationToken ct = default);
+
+    void Discard(string englishPath);
 }
 
 /// <summary>Actualizaciones desde GitHub Releases.</summary>
@@ -106,5 +123,6 @@ public interface IDialogService
     void ShowText(string title, string text);
     bool ShowSettings(SettingsViewModel viewModel);
     void ShowGlossaryEditor(GlossaryEditorViewModel viewModel);
+    void ShowReview(ReviewViewModel viewModel);
     void ShowSummary(IReadOnlyList<SummaryRow> rows);
 }

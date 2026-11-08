@@ -3,6 +3,18 @@
 Formato: una sección `## [X.Y.Z] - AAAA-MM-DD` por versión. Al publicar la etiqueta `vX.Y.Z`, la sección correspondiente
 se usa como notas de la Release (y es lo que la app muestra en «Novedades»).
 
+## [1.1.0] - 2026-11-08
+
+Revisión de la traducción antes de guardar (fase 5).
+
+- Nueva opción en Ajustes: «Revisar la traducción antes de guardar el .es.srt». Al terminar, el video queda
+  «📝 revisar» y la cola sigue con los demás.
+- Ventana «Revisar traducción» (doble clic en la fila): inglés y español lado a lado con los tiempos, español editable,
+  avisos por bloque que se actualizan al escribir, filtros, buscador y «Siguiente aviso» (F3).
+- Guardar el .es.srt (validado), guardar un borrador para seguir más tarde o descartar la traducción.
+- También permite corregir un .es.srt ya guardado (deja una copia .bak).
+- Consola: `subtool review <archivo.en.srt> [--accept|--discard]` y la opción `--review` en `translate` y `run`.
+
 ## [1.0.3] - 2026-11-08
 
 - Corrige la 1.0.2: ahora sí se quita la copia antigua instalada en el perfil del usuario (1.0.0/1.0.1) al instalar en
