@@ -1,0 +1,20 @@
+{
+  "container": { "type": "Matroska", "recognized": true, "supported": true },
+  "errors": [],
+  "file_name": "The Odyssey (2026) Eng 1080p BRRip x265 AAC ESub.mkv",
+  "tracks": [
+    { "codec": "HEVC/H.265/MPEG-H", "id": 0, "type": "video",
+      "properties": { "codec_id": "V_MPEGH/ISO/HEVC", "default_track": true, "forced_track": false, "language": "eng", "language_ietf": "en" } },
+    { "codec": "AAC", "id": 1, "type": "audio",
+      "properties": { "codec_id": "A_AAC", "default_track": true, "forced_track": false, "language": "eng", "language_ietf": "en" } },
+    { "codec": "E-AC-3", "id": 2, "type": "audio",
+      "properties": { "codec_id": "A_EAC3", "default_track": false, "forced_track": false, "language": "eng", "language_ietf": "en" } },
+    { "codec": "SubRip/SRT", "id": 3, "type": "subtitles",
+      "properties": { "codec_id": "S_TEXT/UTF8", "default_track": false, "forced_track": false, "language": "eng", "language_ietf": "en-US", "text_subtitles": true } },
+    { "codec": "SubRip/SRT", "id": 4, "type": "subtitles",
+      "properties": { "codec_id": "S_TEXT/UTF8", "default_track": false, "flag_hearing_impaired": true, "forced_track": false, "language": "eng", "language_ietf": "en-US", "text_subtitles": true } },
+    { "codec": "HDMV PGS", "id": 5, "type": "subtitles",
+      "properties": { "codec_id": "S_HDMV/PGS", "default_track": false, "flag_hearing_impaired": true, "forced_track": false, "language": "eng", "language_ietf": "en-US" } }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,10 @@
+{
+  "errors": [],
+  "tracks": [
+    { "codec": "AVC/H.264/MPEG-4p10", "id": 0, "type": "video", "properties": { "codec_id": "V_MPEG4/ISO/AVC", "language": "eng" } },
+    { "codec": "SubRip/SRT", "id": 2, "type": "subtitles",
+      "properties": { "codec_id": "S_TEXT/UTF8", "language": "eng", "track_name": "English", "forced_track": true, "default_track": false } },
+    { "codec": "HDMV PGS", "id": 3, "type": "subtitles",
+      "properties": { "codec_id": "S_HDMV/PGS", "language": "eng", "forced_track": false, "default_track": false } }
+  ]
+}

@@ -1,0 +1,186 @@
+<Window x:Class="SubtitleTool.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SubtitleTool.App.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="Subtítulos — extractor y traductor"
+        Width="1280" Height="720" MinWidth="900" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        Style="{StaticResource AppWindow}"
+        AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Barra superior y aviso de actualización -->
+        <StackPanel Grid.Row="0">
+        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1"
+                Padding="12,10">
+            <DockPanel LastChildFill="False">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                    <Button Content="Agregar carpeta…" Command="{Binding AddFolderCommand}" Margin="0,0,6,0" />
+                    <Button Content="Agregar archivos…" Command="{Binding AddFilesCommand}" Margin="0,0,16,0" />
+                    <Button Content="Procesar todo" Command="{Binding ProcessAllCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+                    <Button Content="Cancelar" Command="{Binding CancelCommand}" Margin="0,0,16,0" />
+                    <Button Content="Vaciar lista" Command="{Binding ClearListCommand}" ToolTip="Quita todos los videos de la lista (no borra archivos)" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <TextBlock Text="Backend" VerticalAlignment="Center" Style="{StaticResource Muted}" Margin="0,0,6,0" />
+                    <ComboBox Width="120" ItemsSource="{Binding Backends}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                              SelectedValue="{Binding SelectedBackend}" IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBool}}"
+                              ToolTip="Suscripción: Claude Code con tu plan (sin coste por uso). API: clave de API, se paga por uso." Margin="0,0,14,0" />
+                    <TextBlock Text="Modelo" VerticalAlignment="Center" Style="{StaticResource Muted}" Margin="0,0,6,0" />
+                    <ComboBox Width="120" ItemsSource="{Binding Models}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                              SelectedValue="{Binding SelectedModel}" IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBool}}"
+                              Margin="0,0,14,0" />
+                    <Button Content="Ajustes…" Command="{Binding OpenSettingsCommand}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Border Background="#E8F0FE" BorderBrush="{StaticResource Accent}" BorderThickness="0,0,0,1" Padding="12,8"
+                Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <TextBlock Text="{Binding UpdateStatusText}" VerticalAlignment="Center" Style="{StaticResource Muted}" Margin="0,0,10,0" />
+                    <Button Content="Novedades" Command="{Binding ViewReleaseNotesCommand}" Margin="0,0,6,0" />
+                    <Button Content="{Binding UpdateButtonText}" Command="{Binding InstallUpdateCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+                    <Button Content="Más tarde" Command="{Binding DismissUpdateCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding UpdateBannerText}" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </Border>
+        </StackPanel>
+
+        <!-- Lista de videos -->
+        <Grid Grid.Row="1" Margin="12,12,12,8">
+            <DataGrid x:Name="VideosGrid" ItemsSource="{Binding Videos}" SelectedItem="{Binding SelectedVideo}"
+                      IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+                      MouseDoubleClick="OnGridDoubleClick">
+                <DataGrid.ContextMenu>
+                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                        <MenuItem Header="Procesar solo este" Command="{Binding ProcessOneCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Reintentar" Command="{Binding RetryCommand}" CommandParameter="{Binding SelectedVideo}"
+                                  IsEnabled="{Binding SelectedVideo.HasFailed, FallbackValue=False}" />
+                        <Separator />
+                        <MenuItem Header="Abrir carpeta" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Abrir glosario…" Command="{Binding OpenGlossaryCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <Separator />
+                        <MenuItem Header="Ver log" Command="{Binding ViewLogCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Abrir log de traducción" Command="{Binding OpenTranslationLogCommand}" CommandParameter="{Binding SelectedVideo}" />
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Video" Width="3*" MinWidth="220" SortMemberPath="Name">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}" Style="{StaticResource CellText}" ToolTip="{Binding VideoPath}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Pista inglesa" Width="170" MinWidth="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding TrackText}" Style="{StaticResource CellText}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Inglés" Width="90" MinWidth="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding EnglishText}" Style="{StaticResource CellText}"
+                                           Foreground="{Binding EnglishText, Converter={StaticResource StatusBrush}}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Español" Width="90" MinWidth="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding SpanishText}" Style="{StaticResource CellText}"
+                                           Foreground="{Binding SpanishText, Converter={StaticResource StatusBrush}}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Progreso" Width="230" MinWidth="170">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid Height="22">
+                                    <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" IsIndeterminate="{Binding IsProgressIndeterminate}"
+                                                 Maximum="100" Opacity="0.35" />
+                                    <TextBlock Text="{Binding ProgressText}" Style="{StaticResource CellText}" Margin="6,0" FontSize="12" />
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Detalle" Width="2*" MinWidth="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Detail}" Style="{StaticResource CellText}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Estado vacío -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                        Visibility="{Binding HasVideos, Converter={StaticResource InverseBoolToVis}}">
+                <TextBlock Text="Arrastra aquí carpetas o videos .mkv / .mp4" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock Text="o usa «Agregar carpeta…» / «Agregar archivos…»" Style="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,6,0,0" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Registro -->
+        <Expander Grid.Row="2" Header="Registro" Margin="12,0,12,8" IsExpanded="False">
+            <DockPanel Margin="0,6,0,0">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                    <Button Content="Abrir carpeta de registros" Command="{Binding OpenLogsFolderCommand}"
+                            ToolTip="Los mensajes y errores también se guardan en archivos diarios (se conservan 30 días)." />
+                </StackPanel>
+                <ListBox ItemsSource="{Binding LogLines}" Height="140" FontFamily="Consolas" FontSize="12"
+                         BorderBrush="{StaticResource Border}" ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+            </DockPanel>
+        </Expander>
+
+        <!-- Barra de estado -->
+        <Border Grid.Row="3" Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="160" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Analizando videos…  " Style="{StaticResource Muted}"
+                               Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock Text="{Binding CurrentVideoText}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+                    <ProgressBar Width="180" Height="10" Maximum="100" Value="{Binding GlobalProgress, Mode=OneWay}" />
+                    <TextBlock Text="{Binding GlobalProgressText}" Margin="8,0,0,0" MinWidth="70" Style="{StaticResource Muted}" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding UsageText}" VerticalAlignment="Center" Style="{StaticResource Muted}" />
+                <Button Grid.Column="3" Margin="16,0,0,0" Padding="8,2" MinHeight="0" Command="{Binding CheckUpdatesCommand}"
+                        ToolTip="Buscar una versión nueva en GitHub">
+                    <TextBlock>
+                        <Run Text="{Binding VersionText, Mode=OneWay}" /><Run Text=" · Buscar actualizaciones" />
+                    </TextBlock>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

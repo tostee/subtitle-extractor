@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "tracks": [
+    { "codec": "HEVC/H.265/MPEG-H", "id": 0, "type": "video", "properties": { "codec_id": "V_MPEGH/ISO/HEVC", "language": "eng" } },
+    { "codec": "AAC", "id": 1, "type": "audio", "properties": { "codec_id": "A_AAC", "language": "eng", "language_ietf": "en" } },
+    { "codec": "SubRip/SRT", "id": 2, "type": "subtitles",
+      "properties": { "codec_id": "S_TEXT/UTF8", "language": "spa", "language_ietf": "es-419", "forced_track": false, "default_track": true } },
+    { "codec": "SubStationAlpha", "id": 3, "type": "subtitles",
+      "properties": { "codec_id": "S_TEXT/ASS", "language": "jpn", "forced_track": false, "default_track": false } }
+  ]
+}
