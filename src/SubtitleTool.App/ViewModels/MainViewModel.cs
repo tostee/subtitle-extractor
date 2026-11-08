@@ -6,7 +6,6 @@ using SubtitleTool.App.Models;
 using SubtitleTool.App.Services;
 using SubtitleTool.Core.Media;
 using SubtitleTool.Core.Review;
-using SubtitleTool.Core.Mkv;
 using SubtitleTool.Core.Translation;
 using SubtitleTool.Core.Updates;
 using SubtitleTool.Core.Workflow;
@@ -35,6 +34,9 @@ public sealed partial class MainViewModel : ObservableObject
     private CancellationTokenSource? _cts;
     private int _scanning;
     private bool _mkvToolNixWarningShown;
+    // Mientras la ventana de revisión está abierta, los avisos de fin de cola esperan a que se cierre.
+    private bool _reviewOpen;
+    private readonly List<Action> _deferredDialogs = [];
     private TokenUsage _sessionUsage = TokenUsage.Zero;
     private decimal _sessionCost;
     private TokenUsage _currentUsage = TokenUsage.Zero;
@@ -204,7 +206,16 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         var vm = new ReviewViewModel(session, _reviews, _dialogs);
-        _dialogs.ShowReview(vm);
+        _reviewOpen = true;
+        try
+        {
+            _dialogs.ShowReview(vm);
+        }
+        finally
+        {
+            _reviewOpen = false;
+        }
+        ShowDeferredDialogs();
         if (vm.Outcome == ReviewOutcome.None)
             return;
 
@@ -216,6 +227,30 @@ public sealed partial class MainViewModel : ObservableObject
             _ => $"🗑️ {row.Name}: traducción descartada.",
         });
         await RescanAfterReviewAsync(row);
+    }
+
+    /// <summary>
+    /// Avisos que aparecen solos (fin de cola): si la revisión está abierta se guardan y se muestran al cerrarla,
+    /// para no tapar ni interrumpir lo que el usuario está escribiendo.
+    /// </summary>
+    private void ShowWhenFree(Action show)
+    {
+        if (!_reviewOpen)
+        {
+            show();
+            return;
+        }
+        if (_deferredDialogs.Count == 0)
+            Log("ℹ️ La cola terminó mientras revisabas: el aviso se mostrará al cerrar la revisión.");
+        _deferredDialogs.Add(show);
+    }
+
+    private void ShowDeferredDialogs()
+    {
+        var pending = _deferredDialogs.ToList();
+        _deferredDialogs.Clear();
+        foreach (var show in pending)
+            show();
     }
 
     private async Task RescanAfterReviewAsync(VideoItemViewModel row)
@@ -552,12 +587,13 @@ public sealed partial class MainViewModel : ObservableObject
             if (stopOutcome.IsUsageLimit)
             {
                 Log("⏸️ " + UsageLimitMessage);
-                _dialogs.ShowWarning(UsageLimitMessage, "Límite de uso alcanzado");
+                ShowWhenFree(() => _dialogs.ShowWarning(UsageLimitMessage, "Límite de uso alcanzado"));
             }
             else
             {
                 Log("⏸️ Se detuvo la cola: " + stopOutcome.Detail);
-                _dialogs.ShowError(stopOutcome.Detail + "\n\nSe detuvo la cola; el avance quedó guardado.", "No se puede continuar");
+                var detail = stopOutcome.Detail;
+                ShowWhenFree(() => _dialogs.ShowError(detail + "\n\nSe detuvo la cola; el avance quedó guardado.", "No se puede continuar"));
             }
         }
 
@@ -566,7 +602,10 @@ public sealed partial class MainViewModel : ObservableObject
             Log($"📝 {toReview} traducción(es) lista(s) para revisar: doble clic en la fila (o clic derecho → «Revisar traducción…»).");
 
         if (showSummary && processed.Count > 0)
-            _dialogs.ShowSummary(processed.Select(r => r.ToSummaryRow()).ToList());
+        {
+            var summary = processed.Select(r => r.ToSummaryRow()).ToList();
+            ShowWhenFree(() => _dialogs.ShowSummary(summary));
+        }
     }
 
     private async Task<VideoOutcome> ProcessRowAsync(VideoItemViewModel row, CancellationToken ct)

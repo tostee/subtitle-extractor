@@ -165,6 +165,39 @@ public sealed class ReviewViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task QueueEndDialogs_WaitUntilReviewWindowCloses()
+    {
+        var (video, _) = await VideoWithDraftAsync();
+        var other = Path.Combine(_dir, "Otra.mkv");
+        _h.Library.Folders[_dir] = [video, other];
+        _h.Processing.Handler = (_, _, _) => Task.FromResult(new VideoOutcome
+        {
+            Status = VideoOutcomeStatus.Failed, Detail = "límite de uso alcanzado (reanudable)", IsUsageLimit = true,
+        });
+        var main = _h.CreateMain();
+        await main.AddPathsAsync([_dir]);
+        var (row, otherRow) = (main.Videos[0], main.Videos[1]);
+
+        var warningsDuringReview = -1;
+        _h.Dialogs.OnReview = async r =>
+        {
+            // La cola termina (límite de uso) con la revisión abierta: el aviso no debe salir encima.
+            await main.ProcessOneCommand.ExecuteAsync(otherRow);
+            warningsDuringReview = _h.Dialogs.Warnings.Count;
+            await r.SaveDraftCommand.ExecuteAsync(null);
+        };
+        await Task.Run(() => main.OpenRowCommand.ExecuteAsync(row));
+
+        Assert.Equal(0, warningsDuringReview);
+        Assert.Contains(main.LogLines, l => l.Contains("se mostrará al cerrar la revisión"));
+        Assert.Single(_h.Dialogs.Warnings); // se muestra al cerrar la revisión
+
+        // Sin revisión abierta, el aviso sale en el momento, como siempre.
+        await main.ProcessOneCommand.ExecuteAsync(otherRow);
+        Assert.Equal(2, _h.Dialogs.Warnings.Count);
+    }
+
+    [Fact]
     public async Task Review_WithoutTranslation_ExplainsInsteadOfOpening()
     {
         var video = Path.Combine(_dir, "Sola.mkv");
