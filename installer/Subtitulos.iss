@@ -159,7 +159,7 @@ var
 begin
   Result := '';
   if RegQueryStringValue(HKEY_CURRENT_USER,
-       'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1', 'UninstallString', Uninstaller) then
+       'Software\Microsoft\Windows\CurrentVersion\Uninstall\{6E4B1F0A-3C2D-4B7E-9A51-5D8C2F7E1A40}_is1', 'UninstallString', Uninstaller) then
   begin
     Uninstaller := RemoveQuotes(Uninstaller);
     if FileExists(Uninstaller) then
