@@ -22,6 +22,7 @@
     <SolidColorBrush x:Key="HeaderBackground" Color="#F8F9FB" />
 
     <Style TargetType="Window" x:Key="AppWindow">
+        <Setter Property="Icon" Value="pack://application:,,,/Subtitulos;component/Assets/Subtitulos.ico" />
         <Setter Property="Background" Value="{StaticResource WindowBackground}" />
         <Setter Property="Foreground" Value="{StaticResource Text}" />
         <Setter Property="FontFamily" Value="Segoe UI" />

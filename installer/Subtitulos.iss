@@ -27,6 +27,8 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayIcon={app}\{#AppExe}
+SetupIconFile=..\src\SubtitleTool.App\Assets\Subtitulos.ico
+WizardSmallImageFile=wizard-small-55.png,wizard-small-64.png,wizard-small-110.png,wizard-small-128.png
 UninstallDisplayName={#AppName}
 ; Para que el cambio del PATH (subtool) llegue a las ventanas nuevas sin cerrar sesión.
 ChangesEnvironment=yes

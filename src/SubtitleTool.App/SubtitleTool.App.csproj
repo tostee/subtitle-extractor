@@ -8,12 +8,17 @@
     <RootNamespace>SubtitleTool.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Product>Subtítulos</Product>
+    <ApplicationIcon>Assets\Subtitulos.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="SubtitleTool.App.Tests" />
     <!-- Los usings implícitos de WPF no incluyen System.IO. -->
     <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Subtitulos.ico" />
   </ItemGroup>
 
   <ItemGroup>

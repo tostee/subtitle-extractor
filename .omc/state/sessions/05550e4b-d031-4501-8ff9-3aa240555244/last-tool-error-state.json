@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"$s = \\\"C:\\\\Users\\\\segur\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\1a25a88f29d83fb9\\\\05550e4b-d031-4501-8ff9-3aa240555244\\\\scratchpad\\\"; $dir = \\\"$s\\\\instalado-upd\\\"\\n$gui = Start-Process \\\"$dir\\\\Subt...",
+  "error": "Exit code 1\nInvoke-Expression : At line:3 char:63\r\n+ ... reach ($t in 3,8,15) { Start-Sleep -Seconds ($t - ($t -gt 3 ? 0 : 0)) ...\r\n+                                                                 ~\r\nUnexpected token '?' in expression or statement.\r\nAt line:3 char:62\r\n+ foreach ($t in 3,8,15) { Start-Sleep -Seconds ($t - ($t -gt 3 ? 0 : 0 ...\r\n+                                                              ~\r\nMissing closing ')' in expression.\r\nAt line:3 char:24\r\n+ foreach ($t in 3,8,15) { Start...",
+  "timestamp": "2026-11-08T06:39:07.044Z",
+  "retry_count": 2
+}

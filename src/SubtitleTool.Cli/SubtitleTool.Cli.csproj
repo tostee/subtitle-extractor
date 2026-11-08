@@ -5,6 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>subtool</AssemblyName>
     <RootNamespace>SubtitleTool.Cli</RootNamespace>
+    <ApplicationIcon>..\SubtitleTool.App\Assets\Subtitulos.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

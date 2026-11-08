@@ -3,6 +3,11 @@
 Formato: una sección `## [X.Y.Z] - AAAA-MM-DD` por versión. Al publicar la etiqueta `vX.Y.Z`, la sección correspondiente
 se usa como notas de la Release (y es lo que la app muestra en «Novedades»).
 
+## [1.0.1] - 2026-11-08
+
+- Icono propio de la aplicación: en el instalador, el menú Inicio, el escritorio, la barra de tareas, las ventanas y en
+  «Aplicaciones instaladas» de Windows.
+
 ## [1.0.0] - 2026-11-08
 
 Primera versión publicada.
