@@ -1,5 +1,5 @@
 ﻿; Instalador de Subtítulos (Inno Setup 6). Se compila con build-installer.ps1, que primero publica la app en .\publish.
-; Instalación por usuario (sin pedir administrador); el asistente permite elegir «para todos los usuarios».
+; Se instala siempre en C:\Program Files\Subtitulos para todos los usuarios (pide permiso de administrador).
 
 #define AppName "Subtítulos"
 #define AppExe "Subtitulos.exe"
@@ -13,11 +13,12 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
 VersionInfoVersion={#AppVersion}
-DefaultDirName={autopf}\Subtitulos
+DefaultDirName={commonpf64}\Subtitulos
+DisableDirPage=yes
+UsePreviousAppDir=no
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
+PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
@@ -58,7 +59,8 @@ Filename: "{cmd}"; Parameters: "/C winget install --id MoritzBunkus.MKVToolNix -
 Filename: "{cmd}"; Parameters: "/C winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements"; StatusMsg: "Instalando FFmpeg con winget…"; Tasks: installffmpeg; Flags: waituntilterminated
 Filename: "{app}\{#AppExe}"; Description: "Abrir {#AppName}"; Flags: nowait postinstall skipifsilent
 ; Actualización desde la propia app (/UPDATE=1, en modo silencioso): se vuelve a abrir sola.
-Filename: "{app}\{#AppExe}"; Flags: nowait; Check: IsAppUpdate
+; runasoriginaluser: la app no debe quedar abierta como administrador (no admitiría arrastrar archivos desde el Explorador).
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: IsAppUpdate
 
 ; Los ajustes, la clave cifrada, el progreso y los registros (%LOCALAPPDATA%\SubtitleTool) se conservan al desinstalar.
 
@@ -146,6 +148,23 @@ begin
   else
     Delete(Paths, 1, Length(Dir) + 1);     { era el primero: quita Dir + ';' }
   RegWriteExpandStringValue(EnvRoot, EnvKey, 'Path', Paths);
+end;
+
+{ Las versiones 1.0.0 y 1.0.1 se instalaban por usuario (en %LOCALAPPDATA%\Programs). Antes de instalar en
+  Program Files se desinstala esa copia en silencio para no dejar dos (los ajustes y el avance se conservan). }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Uninstaller: String;
+  ResultCode: Integer;
+begin
+  Result := '';
+  if RegQueryStringValue(HKEY_CURRENT_USER,
+       'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1', 'UninstallString', Uninstaller) then
+  begin
+    Uninstaller := RemoveQuotes(Uninstaller);
+    if FileExists(Uninstaller) then
+      Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

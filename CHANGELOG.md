@@ -3,6 +3,14 @@
 Formato: una sección `## [X.Y.Z] - AAAA-MM-DD` por versión. Al publicar la etiqueta `vX.Y.Z`, la sección correspondiente
 se usa como notas de la Release (y es lo que la app muestra en «Novedades»).
 
+## [1.0.2] - 2026-11-08
+
+- La aplicación se instala ahora en `C:\Program Files\Subtitulos` para todos los usuarios (pide permiso de
+  administrador al instalar y al actualizar).
+- Si estaba instalada la 1.0.0 o la 1.0.1 (en el perfil del usuario), esa copia se quita automáticamente; los ajustes,
+  la clave, los glosarios y el avance se conservan.
+- Tras actualizar, la app se vuelve a abrir con el usuario normal (no como administrador).
+
 ## [1.0.1] - 2026-11-08
 
 - Icono propio de la aplicación: en el instalador, el menú Inicio, el escritorio, la barra de tareas, las ventanas y en

@@ -227,7 +227,8 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         if (!_dialogs.Confirm($"Se descargará e instalará la versión {release.Version.ToString(3)}.\n" +
-                              "La aplicación se cerrará y se volverá a abrir sola. Tus ajustes y el avance se conservan.\n\n¿Continuar?", "Actualizar"))
+                              "Windows pedirá permiso de administrador (se instala en Program Files). La aplicación se cerrará " +
+                              "y se volverá a abrir sola. Tus ajustes y el avance se conservan.\n\n¿Continuar?", "Actualizar"))
             return;
 
         IsUpdating = true;

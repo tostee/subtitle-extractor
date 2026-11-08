@@ -58,8 +58,16 @@ internal static class UpdateCommands
                 }
             });
             var installer = await updater.DownloadInstallerAsync(latest, progress, ct);
-            Console.WriteLine("Instalador verificado. Se instala en segundo plano; esta consola termina ahora.");
-            GitHubUpdater.LaunchInstaller(installer, relaunchApp: false);
+            Console.WriteLine("Instalador verificado. Windows pedirá permiso de administrador; se instala en segundo plano y esta consola termina ahora.");
+            try
+            {
+                GitHubUpdater.LaunchInstaller(installer, relaunchApp: false);
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                Console.Error.WriteLine($"Error: no se inició el instalador ({ex.Message}).");
+                return ExitCodes.Failure;
+            }
             return ExitCodes.Ok;
         }
         catch (UpdateException ex)

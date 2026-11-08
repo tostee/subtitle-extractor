@@ -6,8 +6,9 @@ Anthropic— y valida traducciones `.srt` contra el original.
 
 ## Instalar
 
-Descarga `Subtitulos-Setup-<versión>.exe` de la [última versión](https://github.com/tostee/subtitle-extractor/releases/latest) y ejecútalo. No pide permisos de administrador (se instala para tu usuario; el asistente
-permite elegir «para todos los usuarios») y **no necesita .NET instalado**: la app va autocontenida.
+Descarga `Subtitulos-Setup-<versión>.exe` de la [última versión](https://github.com/tostee/subtitle-extractor/releases/latest) y ejecútalo. Se instala en `C:\Program Files\Subtitulos` para todos los usuarios (Windows pide permiso de
+administrador) y **no necesita .NET instalado**: la app va autocontenida. Si tenías la 1.0.0 o la 1.0.1 (que se
+instalaban en tu perfil), se quita esa copia automáticamente.
 
 - Crea el acceso en el menú Inicio (y, si lo marcas, en el escritorio).
 - Opción «Agregar `subtool` al PATH» para usar la consola desde cualquier carpeta (se quita al desinstalar).
@@ -22,8 +23,8 @@ permite elegir «para todos los usuarios») y **no necesita .NET instalado**: la
 Al abrirse, la app consulta la última Release de este repositorio (se puede desactivar en «Ajustes → Actualizaciones»;
 también hay «Buscar actualizaciones» en la barra de estado y `subtool update` en la consola). Si hay una versión nueva
 aparece un aviso con «Novedades» y «Actualizar ahora»: descarga el instalador, comprueba su huella SHA-256 (archivo
-`.sha256` publicado junto a él), lo ejecuta en modo silencioso respetando la instalación existente (por usuario o para
-todos) y vuelve a abrir la app. Ajustes, clave, glosarios y avance se conservan. Sin conexión no molesta: solo lo anota en
+`.sha256` publicado junto a él), lo ejecuta en modo silencioso (Windows pide permiso de administrador) y vuelve a abrir la
+app con tu usuario normal. Ajustes, clave, glosarios y avance se conservan. Sin conexión no molesta: solo lo anota en
 el registro.
 
 ### Publicar una versión
