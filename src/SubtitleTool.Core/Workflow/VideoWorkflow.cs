@@ -64,7 +64,7 @@ public static class VideoWorkflow
     /// <summary>Formato del coste: con Claude Code no se paga por uso, se muestra el equivalente de la API.</summary>
     public static string FormatCost(decimal usd, bool claudeCode) => claudeCode
         ? $"incluido en la suscripción (equivalente API ~${usd.ToString("0.0000", Inv)})"
-        : $"coste estimado ${usd.ToString("0.0000", Inv)}";
+        : $"costo estimado ${usd.ToString("0.0000", Inv)}";
 
     /// <summary>Detalle breve del resultado de una traducción (tabla de resumen).</summary>
     public static string ResultDetail(TranslationResult r, bool claudeCode) => r.Status switch

@@ -33,14 +33,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _reviewBeforeSave = settings.ReviewBeforeSave;
         _mkvToolNixDirectory = settings.MkvToolNixDirectory ?? "";
         _ffmpegDirectory = settings.FfmpegDirectory ?? "";
-        var detected = library.DetectMkvToolNix();
-        DetectedMkvToolNixText = detected is null
-            ? "Autodetección: no se encontró MKVToolNix."
-            : $"Autodetectado: {detected}";
-        var detectedFfmpeg = library.DetectFfmpeg();
-        DetectedFfmpegText = detectedFfmpeg is null
-            ? $"Autodetección: no se encontró FFmpeg (solo hace falta para .mp4; winget install {SubtitleTool.Core.Media.FfmpegLocator.WingetPackage})."
-            : $"Autodetectado: {detectedFfmpeg}";
+        RefreshDetectedMkvToolNix();
+        RefreshDetectedFfmpeg();
         RefreshApiKeyStatus();
     }
 
@@ -62,21 +56,110 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _mkvToolNixDirectory;
     [ObservableProperty] private string _ffmpegDirectory;
     [ObservableProperty] private string _errorText = "";
+
+    /// <summary>Campo al que se refiere <see cref="ErrorText"/> (la vista le lleva el foco), o null.</summary>
+    [ObservableProperty] private SettingsField? _errorField;
     [ObservableProperty] private string _apiKeyStatus = "";
     [ObservableProperty] private bool _canClearApiKey;
     [ObservableProperty] private string _checkStatus = "";
+
+    /// <summary>Tipo del resumen de la comprobación (icono).</summary>
+    [ObservableProperty] private StatusKind _checkStatusKind;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CheckCommand))]
     private bool _isChecking;
 
-    public string DetectedMkvToolNixText { get; }
-    public string DetectedFfmpegText { get; }
+    [ObservableProperty] private string _detectedMkvToolNixText = "";
+    [ObservableProperty] private string _detectedFfmpegText = "";
+
+    private CancellationTokenSource? _checkCts;
+
+    // Al escribir la ruta, la detección (E/S de disco, quizá rutas de red) se hace en segundo plano y con espera:
+    // solo cuenta el último valor. «Examinar» y «Autodetectar» la hacen al momento.
+    partial void OnMkvToolNixDirectoryChanged(string value) => ScheduleDetection(mkv: true);
+    partial void OnFfmpegDirectoryChanged(string value) => ScheduleDetection(mkv: false);
+
+    /// <summary>Espera tras la última pulsación antes de buscar los programas.</summary>
+    internal TimeSpan DetectionDelay { get; set; } = TimeSpan.FromMilliseconds(400);
+
+    /// <summary>Última detección en segundo plano (para las pruebas).</summary>
+    internal Task PendingDetection { get; private set; } = Task.CompletedTask;
+
+    private CancellationTokenSource? _mkvDetectCts;
+    private CancellationTokenSource? _ffmpegDetectCts;
+
+    private void ScheduleDetection(bool mkv)
+    {
+        var cts = new CancellationTokenSource();
+        ReplaceDetection(mkv, cts);
+        var preferred = CleanDirectory(mkv ? MkvToolNixDirectory : FfmpegDirectory);
+        PendingDetection = DetectLaterAsync(mkv, preferred, cts.Token);
+    }
+
+    private void ReplaceDetection(bool mkv, CancellationTokenSource? next)
+    {
+        var old = mkv ? _mkvDetectCts : _ffmpegDetectCts;
+        old?.Cancel();
+        if (mkv)
+            _mkvDetectCts = next;
+        else
+            _ffmpegDetectCts = next;
+    }
+
+    private async Task DetectLaterAsync(bool mkv, string? preferred, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(DetectionDelay, ct);
+            var found = await Task.Run(() => mkv ? _library.DetectMkvToolNix(preferred) : _library.DetectFfmpeg(preferred), ct);
+            if (!ct.IsCancellationRequested)
+                ApplyDetected(mkv, found, preferred);
+        }
+        catch (OperationCanceledException)
+        {
+            // Llegó otra pulsación: vale el resultado de la última.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // Ruta inválida o inaccesible: se deja el texto anterior; al guardar se valida.
+        }
+    }
+
+    private void ApplyDetected(bool mkv, string? found, string? preferred)
+    {
+        if (mkv)
+            DetectedMkvToolNixText = DescribeDetected(found, preferred, "No se encontró MKVToolNix (hace falta para los .mkv).");
+        else
+            DetectedFfmpegText = DescribeDetected(found, preferred,
+                $"No se encontró FFmpeg (solo hace falta para .mp4; winget install {SubtitleTool.Core.Media.FfmpegLocator.WingetPackage}).");
+    }
+
+    /// <summary>Qué carpeta se usará con lo escrito ahora (la indicada si contiene los programas; si no, la autodetectada).</summary>
+    private void RefreshDetectedMkvToolNix()
+    {
+        ReplaceDetection(mkv: true, null);
+        var preferred = CleanDirectory(MkvToolNixDirectory);
+        ApplyDetected(mkv: true, _library.DetectMkvToolNix(preferred), preferred);
+    }
+
+    private void RefreshDetectedFfmpeg()
+    {
+        ReplaceDetection(mkv: false, null);
+        var preferred = CleanDirectory(FfmpegDirectory);
+        ApplyDetected(mkv: false, _library.DetectFfmpeg(preferred), preferred);
+    }
+
+    private static string DescribeDetected(string? found, string? preferred, string notFound) =>
+        found is null ? notFound
+        : preferred is not null && string.Equals(found.TrimEnd('\\'), preferred.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) ? $"Se usará: {found}"
+        : $"Autodetectado: {found}";
 
     /// <summary>Clave nueva (la vista la copia desde un PasswordBox; nunca se muestra).</summary>
     public string NewApiKey { get; set; } = "";
 
-    public ObservableCollection<DoctorCheck> Checks { get; } = [];
+    /// <summary>Resultado de cada comprobación (tipo para el icono y texto sin emoji).</summary>
+    public ObservableCollection<CheckRow> Checks { get; } = [];
 
     private void RefreshApiKeyStatus()
     {
@@ -95,7 +178,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(NewApiKey))
         {
-            ErrorText = "Escribe o pega la clave de API antes de guardarla.";
+            SetError("Escribe o pega la clave de API antes de guardarla.", SettingsField.ApiKey);
             return false;
         }
         try
@@ -105,11 +188,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException
                                        or System.Security.Cryptography.CryptographicException or ArgumentException)
         {
-            ErrorText = "No se pudo guardar la clave: " + ex.Message;
+            SetError("No se pudo guardar la clave: " + ex.Message, SettingsField.ApiKey);
             return false;
         }
         NewApiKey = "";
-        ErrorText = "";
+        SetError("", null);
         RefreshApiKeyStatus();
         return true;
     }
@@ -134,21 +217,35 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void BrowseMkvToolNix()
     {
         if (_dialogs.PickFolder("Carpeta de MKVToolNix (contiene mkvmerge.exe y mkvextract.exe)") is { } dir)
+        {
             MkvToolNixDirectory = dir;
+            RefreshDetectedMkvToolNix();
+        }
     }
 
     [RelayCommand]
-    private void UseAutodetect() => MkvToolNixDirectory = "";
+    private void UseAutodetect()
+    {
+        MkvToolNixDirectory = "";
+        RefreshDetectedMkvToolNix();
+    }
 
     [RelayCommand]
     private void BrowseFfmpeg()
     {
         if (_dialogs.PickFolder("Carpeta de FFmpeg (contiene ffmpeg.exe y ffprobe.exe)") is { } dir)
+        {
             FfmpegDirectory = dir;
+            RefreshDetectedFfmpeg();
+        }
     }
 
     [RelayCommand]
-    private void UseAutodetectFfmpeg() => FfmpegDirectory = "";
+    private void UseAutodetectFfmpeg()
+    {
+        FfmpegDirectory = "";
+        RefreshDetectedFfmpeg();
+    }
 
     private static string? CleanDirectory(string? text) =>
         string.IsNullOrWhiteSpace(text) ? null : text.Trim().Trim('"');
@@ -157,25 +254,49 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanCheck))]
     private async Task CheckAsync()
     {
+        using var cts = new CancellationTokenSource();
+        _checkCts = cts;
         IsChecking = true;
         Checks.Clear();
-        CheckStatus = "Comprobando… (incluye una llamada mínima a Claude Code con haiku)";
+        SetCheckStatus("Comprobando… (incluye una llamada mínima a Claude Code con haiku; puede tardar unos segundos)", StatusKind.InProgress);
         try
         {
             var checks = await _doctor.RunAsync(new SubtitleTool.Core.Media.MediaToolDirectories(
-                CleanDirectory(MkvToolNixDirectory), CleanDirectory(FfmpegDirectory)));
+                CleanDirectory(MkvToolNixDirectory), CleanDirectory(FfmpegDirectory)), cts.Token);
             foreach (var c in checks)
-                Checks.Add(c);
-            CheckStatus = DoctorService.AllOk(checks) ? "✅ Todo listo." : "❌ Hay puntos que revisar.";
+                Checks.Add(new CheckRow(c.Ok ? StatusKind.Success : c.Required ? StatusKind.Error : StatusKind.Warning, c.Text));
+            if (DoctorService.AllOk(checks))
+                SetCheckStatus("Todo listo.", StatusKind.Success);
+            else
+                SetCheckStatus("Hay puntos que revisar.", StatusKind.Error);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
         {
-            CheckStatus = "❌ Error al comprobar: " + ex.Message;
+            SetCheckStatus("Comprobación cancelada.", StatusKind.Info);
+        }
+        catch (Exception ex)
+        {
+            SetCheckStatus("Error al comprobar: " + ex.Message, StatusKind.Error);
         }
         finally
         {
+            _checkCts = null;
             IsChecking = false;
         }
+    }
+
+    private void SetCheckStatus(string text, StatusKind kind)
+    {
+        CheckStatus = text;
+        CheckStatusKind = kind;
+    }
+
+    /// <summary>Detiene la comprobación en curso (al cerrar la ventana no se deja trabajando en segundo plano).</summary>
+    public void CancelPendingWork()
+    {
+        _checkCts?.Cancel();
+        ReplaceDetection(mkv: true, null);
+        ReplaceDetection(mkv: false, null);
     }
 
     private bool CanCheck() => !IsChecking;
@@ -185,24 +306,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (!int.TryParse(ChunkSizeText?.Trim(), out var chunk) || chunk < 1 || chunk > 2000)
         {
-            ErrorText = "El tamaño de tramo debe ser un número entero entre 1 y 2000.";
+            SetError("El tamaño de tramo debe ser un número entero entre 1 y 2000.", SettingsField.ChunkSize);
             return false;
         }
         if (!int.TryParse(TimeoutText?.Trim(), out var timeout) || timeout < 1 || timeout > 240)
         {
-            ErrorText = "El tiempo máximo por tramo debe ser un número entero de minutos entre 1 y 240.";
+            SetError("El tiempo máximo por tramo debe ser un número entero de minutos entre 1 y 240.", SettingsField.Timeout);
             return false;
         }
         var dir = CleanDirectory(MkvToolNixDirectory);
         if (dir is not null && !Directory.Exists(dir))
         {
-            ErrorText = $"La carpeta de MKVToolNix no existe: {dir}";
+            SetError($"La carpeta de MKVToolNix no existe: {dir}", SettingsField.MkvToolNixDirectory);
             return false;
         }
         var ffmpegDir = CleanDirectory(FfmpegDirectory);
         if (ffmpegDir is not null && !Directory.Exists(ffmpegDir))
         {
-            ErrorText = $"La carpeta de FFmpeg no existe: {ffmpegDir}";
+            SetError($"La carpeta de FFmpeg no existe: {ffmpegDir}", SettingsField.FfmpegDirectory);
             return false;
         }
 
@@ -219,7 +340,23 @@ public sealed partial class SettingsViewModel : ObservableObject
             MkvToolNixDirectory = dir,
             FfmpegDirectory = ffmpegDir,
         }.Normalize();
-        ErrorText = "";
+        SetError("", null);
         return true;
     }
+
+    private void SetError(string text, SettingsField? field)
+    {
+        ErrorField = field;
+        ErrorText = text;
+    }
+}
+
+/// <summary>Campos de Ajustes que pueden tener un error de validación.</summary>
+public enum SettingsField
+{
+    ChunkSize,
+    Timeout,
+    MkvToolNixDirectory,
+    FfmpegDirectory,
+    ApiKey,
 }

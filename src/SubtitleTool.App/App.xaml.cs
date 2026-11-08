@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using SubtitleTool.App.Services;
+using SubtitleTool.App.Themes;
 using SubtitleTool.App.ViewModels;
 using SubtitleTool.App.Views;
 
@@ -34,6 +35,9 @@ public partial class App : Application
                 activityLog.WriteException("Error fatal", ex);
         };
         activityLog.Write($"Inicio de Subtítulos {typeof(App).Assembly.GetName().Version} en {Environment.OSVersion}");
+
+        // Alto contraste: la paleta propia cede a los colores del sistema (y vuelve al quitarlo).
+        HighContrastPalette.Attach(this);
 
         var dialogs = new DialogService();
         _main = new MainViewModel(new JsonSettingsStore(), new LibraryService(), new VideoProcessingService(),

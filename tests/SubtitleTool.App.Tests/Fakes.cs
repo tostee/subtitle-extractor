@@ -69,8 +69,16 @@ public sealed class FakeLibrary : ILibraryService
         return Task.FromResult(Statuses.TryGetValue(videoPath, out var f) ? f() : TestVideos.Translatable(videoPath));
     }
 
-    public string? DetectMkvToolNix(string? preferred = null) => MkvMissing ? null : @"C:\Program Files\MKVToolNix";
-    public string? DetectFfmpeg(string? preferred = null) => FfmpegDetected;
+    public string? DetectMkvToolNix(string? preferred = null) => MkvMissing ? null : MkvDetected;
+    public string MkvDetected { get; set; } = @"C:\Program Files\MKVToolNix";
+    private int _ffmpegDetections;
+    /// <summary>Veces que se buscó FFmpeg (para comprobar la espera al escribir la ruta).</summary>
+    public int FfmpegDetections => Volatile.Read(ref _ffmpegDetections);
+    public string? DetectFfmpeg(string? preferred = null)
+    {
+        Interlocked.Increment(ref _ffmpegDetections);
+        return FfmpegDetected;
+    }
 }
 
 /// <summary>Procesador falso: por defecto completa al instante; <see cref="Handler"/> permite simular otros casos.</summary>
@@ -111,6 +119,8 @@ public sealed class FakeGlossaryService : IGlossaryService
     public Dictionary<string, Glossary> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
     public HashSet<string> Invalid { get; } = new(StringComparer.OrdinalIgnoreCase);
     public int RegenerateCount { get; private set; }
+    /// <summary>Si se indica, «Regenerar» espera a que se complete (o a que se cancele).</summary>
+    public TaskCompletionSource? RegenerateGate { get; set; }
 
     public Glossary? Load(string glossaryPath)
     {
@@ -121,12 +131,14 @@ public sealed class FakeGlossaryService : IGlossaryService
 
     public void Save(string glossaryPath, Glossary glossary) => Files[glossaryPath] = glossary;
 
-    public Task<Glossary> RegenerateAsync(string englishPath, AppSettings settings, CancellationToken ct)
+    public async Task<Glossary> RegenerateAsync(string englishPath, AppSettings settings, CancellationToken ct)
     {
         RegenerateCount++;
+        if (RegenerateGate is not null)
+            await RegenerateGate.Task.WaitAsync(ct);
         var g = new Glossary { Terms = [new GlossaryTerm { En = "Ithaca", Es = "Ítaca" }] };
         Files[TranslationPaths.FromEnglish(englishPath).GlossaryPath] = g;
-        return Task.FromResult(g);
+        return g;
     }
 }
 
@@ -140,10 +152,15 @@ public sealed class FakeDoctor : IDoctorService
         new(false, "Clave de API: no configurada", Required: false),
     ];
 
-    public Task<IReadOnlyList<DoctorCheck>> RunAsync(MediaToolDirectories tools, CancellationToken ct = default)
+    /// <summary>Si se indica, la comprobación espera a que se complete (o a que se cancele).</summary>
+    public TaskCompletionSource? Gate { get; set; }
+
+    public async Task<IReadOnlyList<DoctorCheck>> RunAsync(MediaToolDirectories tools, CancellationToken ct = default)
     {
         LastTools = tools;
-        return Task.FromResult(Result);
+        if (Gate is not null)
+            await Gate.Task.WaitAsync(ct);
+        return Result;
     }
 }
 
@@ -180,11 +197,24 @@ public sealed class FakeDialogs : IDialogService
     public void ShowWarning(string message, string title = "Subtítulos") => Warnings.Add(message);
     public void ShowError(string message, string title = "Subtítulos") => Errors.Add(message);
     public bool Confirm(string message, string title = "Subtítulos") => ConfirmResult;
+    /// <summary>Respuesta a «¿Guardar los cambios?»: true guardar, false no guardar, null cancelar.</summary>
+    public bool? AskSaveResult { get; set; }
+    public List<string> AskSaves { get; } = [];
+    public bool? AskSaveChanges(string message, string title = "Subtítulos")
+    {
+        AskSaves.Add(message);
+        return AskSaveResult;
+    }
     public void OpenFolder(string path) => OpenedFolders.Add(path);
     public void OpenFile(string path) { }
     public List<string> OpenedUrls { get; } = [];
     public void OpenUrl(string url) => OpenedUrls.Add(url);
-    public void ShowText(string title, string text) => Texts.Add((title, text));
+    public List<bool> TextProse { get; } = [];
+    public void ShowText(string title, string text, bool prose = false)
+    {
+        Texts.Add((title, text));
+        TextProse.Add(prose);
+    }
     public bool ShowSettings(SettingsViewModel viewModel) => OnSettings?.Invoke(viewModel) ?? false;
     public void ShowGlossaryEditor(GlossaryEditorViewModel viewModel) => GlossaryShown = viewModel;
     /// <summary>Lo que hace el usuario en la ventana de revisión; la ventana real es modal, así que se espera a que termine.</summary>

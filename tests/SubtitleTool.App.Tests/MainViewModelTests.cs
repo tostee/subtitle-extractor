@@ -27,13 +27,15 @@ public sealed class MainViewModelTests
         var a = vm.Videos[0];
         Assert.Equal("a.mkv", a.Name);
         Assert.Equal("3 (normal)", a.TrackText);
-        Assert.Equal("✅ existe", a.EnglishText);
+        Assert.Equal("existe", a.EnglishText);
+        Assert.Equal(StatusKind.Success, a.EnglishStatus);
         Assert.Equal("pendiente", a.SpanishText);
         Assert.Equal(RowState.Ready, a.State);
         Assert.Equal("solo imagen — necesita OCR", vm.Videos[1].TrackText);
-        Assert.Equal("❌", vm.Videos[1].EnglishText);
+        Assert.Equal("no disponible", vm.Videos[1].EnglishText);
+        Assert.Equal(StatusKind.Error, vm.Videos[1].EnglishStatus);
         Assert.Equal("pendiente", vm.Videos[2].EnglishText);
-        Assert.Equal("✅ existe", vm.Videos[2].SpanishText);
+        Assert.Equal("existe", vm.Videos[2].SpanishText);
     }
 
     [Fact]
@@ -47,7 +49,7 @@ public sealed class MainViewModelTests
         await vm.AddPathsAsync([Folder, @"X:\NoExiste"]);
 
         Assert.Single(vm.Videos);
-        Assert.Contains(vm.LogLines, l => l.Contains("No se pudo leer") && l.Contains("NoExiste"));
+        Assert.Contains(vm.LogLines, l => l.Text.Contains("No se pudo leer") && l.Text.Contains("NoExiste"));
     }
 
     [Fact]
@@ -81,9 +83,9 @@ public sealed class MainViewModelTests
         await vm.ProcessAllCommand.ExecuteAsync(null);
 
         Assert.Equal(["a.mkv", "b.mp4", "c.mkv", "d.mp4"], h.Processing.Processed);
-        Assert.Equal(["❌", "✅", "❌", "✅"], Assert.Single(h.Dialogs.Summaries).Select(r => r.Icon));
+        Assert.Equal([StatusKind.Error, StatusKind.Success, StatusKind.Error, StatusKind.Success], Assert.Single(h.Dialogs.Summaries).Select(r => r.Kind));
         Assert.Single(h.Dialogs.Errors); // solo el aviso al analizar, ningún «No se puede continuar»
-        Assert.DoesNotContain(vm.LogLines, l => l.Contains("Se detuvo la cola"));
+        Assert.DoesNotContain(vm.LogLines, l => l.Text.Contains("Se detuvo la cola"));
     }
 
     [Fact]
@@ -108,13 +110,13 @@ public sealed class MainViewModelTests
         Assert.Equal(["a.mkv", "b.mkv", "c.mkv"], h.Processing.Processed);
         Assert.False(vm.IsProcessing);
         Assert.Equal(RowState.Completed, vm.Videos[0].State);
-        Assert.Equal("✅ existe", vm.Videos[0].SpanishText);
+        Assert.Equal("existe", vm.Videos[0].SpanishText);
         Assert.Equal(100, vm.Videos[0].ProgressValue);
         Assert.Equal(RowState.Failed, vm.Videos[1].State);
         Assert.Equal("inglés solo en imagen (necesita OCR)", vm.Videos[1].Detail);
 
         var summary = Assert.Single(h.Dialogs.Summaries);
-        Assert.Equal(["✅", "❌", "✅"], summary.Select(r => r.Icon));
+        Assert.Equal([StatusKind.Success, StatusKind.Error, StatusKind.Success], summary.Select(r => r.Kind));
         Assert.Equal(100, vm.GlobalProgress);
         Assert.Contains("incluido en la suscripción (equivalente API ~$1.0000)", vm.UsageText);
         Assert.Contains("ent / 100 sal", vm.UsageText);
@@ -189,7 +191,7 @@ public sealed class MainViewModelTests
         Assert.Equal(RowState.Failed, vm.Videos[0].State);
         Assert.Contains("algo raro", vm.Videos[0].Detail);
         Assert.Contains(vm.Videos[0].LogLines, l => l.Contains("algo raro"));
-        Assert.Contains(vm.LogLines, l => l.Contains("algo raro"));
+        Assert.Contains(vm.LogLines, l => l.Text.Contains("algo raro"));
         Assert.Equal(RowState.Completed, vm.Videos[1].State);
     }
 
@@ -262,7 +264,7 @@ public sealed class MainViewModelTests
 
         Assert.Equal(TranslationBackends.Api, h.Settings.Stored.Backend);
         Assert.Equal("claude-haiku-5-5", h.Settings.Stored.Model);
-        Assert.Contains("coste estimado $", vm.UsageText);
+        Assert.Contains("costo estimado $", vm.UsageText);
     }
 
     [Fact]
@@ -359,8 +361,8 @@ public sealed class MainViewModelTests
 
         vm.ReportToolStatus();
 
-        Assert.Contains(vm.LogLines, l => l.Contains("No se encontró MKVToolNix"));
-        Assert.Contains(vm.LogLines, l => l.Contains("No se encontró FFmpeg") && l.Contains("winget install Gyan.FFmpeg"));
+        Assert.Contains(vm.LogLines, l => l.Text.Contains("No se encontró MKVToolNix"));
+        Assert.Contains(vm.LogLines, l => l.Text.Contains("No se encontró FFmpeg") && l.Text.Contains("winget install Gyan.FFmpeg"));
         Assert.Equal(2, h.ActivityLog.Lines.Count);
     }
 
@@ -431,7 +433,7 @@ public sealed class MainViewModelTests
         await vm.CheckForUpdatesOnStartupAsync();
         Assert.False(vm.HasUpdate);
         Assert.Empty(h.Dialogs.Warnings);
-        Assert.Contains(vm.LogLines, l => l.Contains("sin conexión"));
+        Assert.Contains(vm.LogLines, l => l.Text.Contains("sin conexión"));
 
         await vm.CheckUpdatesCommand.ExecuteAsync(null); // a mano sí avisa
         Assert.Single(h.Dialogs.Warnings);

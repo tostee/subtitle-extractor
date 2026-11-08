@@ -117,10 +117,16 @@ public interface IDialogService
     void ShowWarning(string message, string title = "Subtítulos");
     void ShowError(string message, string title = "Subtítulos");
     bool Confirm(string message, string title = "Subtítulos");
+
+    /// <summary>Cambios sin guardar al cerrar: true = guardar, false = no guardar, null = cancelar (seguir en la ventana).</summary>
+    bool? AskSaveChanges(string message, string title = "Subtítulos");
+
     void OpenFolder(string path);
     void OpenFile(string path);
     void OpenUrl(string url);
-    void ShowText(string title, string text);
+
+    /// <summary>Texto de solo lectura. <paramref name="prose"/>: texto corrido (con ajuste de línea), p. ej. notas de versión.</summary>
+    void ShowText(string title, string text, bool prose = false);
     bool ShowSettings(SettingsViewModel viewModel);
     void ShowGlossaryEditor(GlossaryEditorViewModel viewModel);
     void ShowReview(ReviewViewModel viewModel);

@@ -566,4 +566,24 @@ public sealed class SubtitleTranslatorTests : IDisposable
         Assert.True(e.TotalCostUsd > 0);
         Assert.False(File.Exists(Path.Combine(_dir, "Movie.glossary.json")));
     }
+
+    [Fact]
+    public async Task RegenerateGlossary_CancelledWhenTheAnswerArrives_WritesTheWholeFile()
+    {
+        var english = WriteEnglish(3);
+        var paths = TranslationPaths.FromEnglish(english);
+        File.WriteAllText(paths.GlossaryPath, "{ \"terms\": [], \"address\": [] }");
+        using var cts = new CancellationTokenSource();
+        var fake = new FakeTranslationClient { OnGlossary = cts.Cancel };
+        var doc = SrtParser.Parse(File.ReadAllText(english));
+
+        var g = await Translator(fake).GetOrCreateGlossaryAsync(paths, doc, regenerate: true, cts.Token);
+
+        Assert.True(cts.IsCancellationRequested);
+        var written = TranslationPrompts.ParseGlossary(File.ReadAllText(paths.GlossaryPath, Encoding.UTF8));
+        Assert.NotNull(written);                                   // nunca truncado
+        Assert.Equal("Odiseo", Assert.Single(written!.Terms).Es);
+        Assert.Equal(g.Terms.Count, written.Terms.Count);
+        Assert.False(File.Exists(paths.GlossaryPath + ".tmp"));
+    }
 }

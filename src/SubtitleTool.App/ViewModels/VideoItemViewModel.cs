@@ -40,8 +40,37 @@ public sealed partial class VideoItemViewModel : ObservableObject
     [ObservableProperty] private VideoStatus? _status;
     [ObservableProperty] private RowState _state = RowState.Scanning;
     [ObservableProperty] private string _trackText = "analizando…";
-    [ObservableProperty] private string _englishText = "…";
-    [ObservableProperty] private string _spanishText = "…";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EnglishStatus))]
+    private string _englishText = "…";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SpanishStatus))]
+    private string _spanishText = "…";
+
+    // Textos de las columnas Inglés / Español (sin emoji: el icono lo pone la vista según el tipo).
+    public const string ExistsText = "existe";
+    public const string ReviewText = "revisar";
+    public const string PendingText = "pendiente";
+    public const string InProgressText = "en curso";
+    public const string ErrorText = "error";
+    public const string UnavailableText = "no disponible";
+
+    /// <summary>Tipo de estado (icono) de la columna Inglés.</summary>
+    public StatusKind EnglishStatus => KindForCell(EnglishText);
+
+    /// <summary>Tipo de estado (icono) de la columna Español.</summary>
+    public StatusKind SpanishStatus => KindForCell(SpanishText);
+
+    public static StatusKind KindForCell(string? text) => text switch
+    {
+        ExistsText => StatusKind.Success,
+        ReviewText => StatusKind.Review,
+        PendingText => StatusKind.Pending,
+        InProgressText => StatusKind.InProgress,
+        ErrorText or UnavailableText => StatusKind.Error,
+        _ => StatusKind.None,
+    };
     [ObservableProperty] private double _progressValue;
     [ObservableProperty] private bool _isProgressIndeterminate;
     [ObservableProperty] private string _progressText = "";
@@ -83,17 +112,18 @@ public sealed partial class VideoItemViewModel : ObservableObject
         OnPropertyChanged(nameof(CanReview));
     }
 
-    public void AddLog(string message) =>
-        _log.Add($"{DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture)}  {message}");
+    /// <summary>Registro de la fila (texto plano: el tipo va en palabras, p. ej. «[error] …»).</summary>
+    public void AddLog(string message, StatusKind kind = StatusKind.None) =>
+        _log.Add($"{DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture)}  {StatusKinds.TextPrefix(kind)}{message}");
 
     /// <summary>Muestra el resultado de un escaneo.</summary>
     public void ApplyStatus(VideoStatus st)
     {
         Status = st;
         TrackText = DescribeTrack(st);
-        EnglishText = st.Error is not null || st.EnglishPath is null ? "❌" : st.EnglishExists ? "✅ existe" : "pendiente";
+        EnglishText = st.Error is not null || st.EnglishPath is null ? UnavailableText : st.EnglishExists ? ExistsText : PendingText;
         if (State != RowState.Processing)
-            SpanishText = st.SpanishExisting.Count > 0 ? "✅ existe" : st.ReviewPending ? ReviewText : State == RowState.Failed ? "❌" : "pendiente";
+            SpanishText = st.SpanishExisting.Count > 0 ? ExistsText : st.ReviewPending ? ReviewText : State == RowState.Failed ? ErrorText : PendingText;
         if (State == RowState.Scanning)
         {
             State = RowState.Ready;
@@ -106,11 +136,9 @@ public sealed partial class VideoItemViewModel : ObservableObject
                 _ => plan.Reason,
             };
             if (st.Selection?.Kind == SubtitleKind.Forced && st.Selection.Track is not null)
-                Detail += " · ⚠️ pista forzada: puede no cubrir todos los diálogos";
+                Detail += " · atención: pista forzada, puede no cubrir todos los diálogos";
         }
     }
-
-    public const string ReviewText = "📝 revisar";
 
     /// <summary>Tras cerrar la ventana de revisión.</summary>
     public void ApplyReviewOutcome(ReviewOutcome outcome)
@@ -119,23 +147,23 @@ public sealed partial class VideoItemViewModel : ObservableObject
         {
             case ReviewOutcome.Saved:
                 State = RowState.Completed;
-                SpanishText = "✅ existe";
+                SpanishText = ExistsText;
                 ProgressText = "revisada y guardada";
                 Detail = "traducción revisada y guardada";
-                AddLog("✅ Traducción revisada y guardada.");
+                AddLog("Traducción revisada y guardada.", StatusKind.Success);
                 break;
             case ReviewOutcome.DraftSaved:
                 SpanishText = ReviewText;
                 Detail = "revisión a medias guardada: doble clic para seguir";
-                AddLog("📝 Borrador de revisión guardado.");
+                AddLog("Borrador de revisión guardado.", StatusKind.Review);
                 break;
             case ReviewOutcome.Discarded:
                 State = RowState.Ready;
-                SpanishText = "pendiente";
+                SpanishText = PendingText;
                 ProgressText = "";
                 ProgressValue = 0;
                 Detail = "traducción descartada: vuelve a procesar para traducir";
-                AddLog("🗑️ Traducción descartada.");
+                AddLog("Traducción descartada.", StatusKind.Discarded);
                 break;
         }
     }
@@ -144,10 +172,10 @@ public sealed partial class VideoItemViewModel : ObservableObject
     {
         State = RowState.Failed;
         TrackText = "—";
-        EnglishText = "❌";
+        EnglishText = UnavailableText;
         SpanishText = "—";
         Detail = message;
-        AddLog("Error al analizar: " + message);
+        AddLog("Error al analizar: " + message, StatusKind.Error);
     }
 
     public static string DescribeTrack(VideoStatus st)
@@ -194,7 +222,7 @@ public sealed partial class VideoItemViewModel : ObservableObject
             return;
         ProgressText = FormatProgress(p);
         if (p.Stage == VideoProgress.Translating)
-            SpanishText = "en curso";
+            SpanishText = InProgressText;
         if (p.Translation is { ChunkCount: > 0, BlocksTotal: > 0 } t)
         {
             IsProgressIndeterminate = false;
@@ -231,7 +259,7 @@ public sealed partial class VideoItemViewModel : ObservableObject
             case VideoOutcomeStatus.Completed:
                 ProgressValue = 100;
                 ProgressText = o.Translation is { } r ? $"completado · {r.BlockCount} bloques" : "completado";
-                SpanishText = "✅ existe";
+                SpanishText = ExistsText;
                 break;
             case VideoOutcomeStatus.Skipped:
                 ProgressText = "saltado";
@@ -244,18 +272,18 @@ public sealed partial class VideoItemViewModel : ObservableObject
                 break;
             case VideoOutcomeStatus.Cancelled:
                 ProgressText = "cancelado (reanudable)";
-                SpanishText = Status?.SpanishExisting.Count > 0 ? "✅ existe" : "pendiente";
+                SpanishText = Status?.SpanishExisting.Count > 0 ? ExistsText : PendingText;
                 break;
             default:
                 ProgressText = o.IsUsageLimit ? "en pausa (límite de uso)" : "error";
-                SpanishText = Status?.SpanishExisting.Count > 0 ? "✅ existe" : "❌";
+                SpanishText = Status?.SpanishExisting.Count > 0 ? ExistsText : ErrorText;
                 break;
         }
-        AddLog($"{SummaryRow.IconFor(o.Status)} {o.Detail}");
+        AddLog(o.Detail, SummaryRow.KindFor(o.Status));
         foreach (var m in o.Messages)
             AddLog("   " + m);
         if (o.LogPath is not null)
-            AddLog("   Log de traducción: " + o.LogPath);
+            AddLog("   Registro de traducción: " + o.LogPath);
     }
 
     private static RowState StateFor(VideoOutcomeStatus s) => s switch
@@ -268,19 +296,22 @@ public sealed partial class VideoItemViewModel : ObservableObject
     };
 
     public SummaryRow ToSummaryRow() => LastOutcome is { } o
-        ? new SummaryRow(Name, SummaryRow.IconFor(o.Status), o.Detail)
-        : new SummaryRow(Name, "⏭️", "no procesado");
+        ? new SummaryRow(Name, SummaryRow.KindFor(o.Status), o.Detail)
+        : new SummaryRow(Name, StatusKind.Skipped, "no procesado");
 }
 
-/// <summary>Fila del resumen final.</summary>
-public sealed record SummaryRow(string Name, string Icon, string Detail)
+/// <summary>Fila del resumen final: el tipo (icono y palabra) se pinta en la vista.</summary>
+public sealed record SummaryRow(string Name, StatusKind Kind, string Detail)
 {
-    public static string IconFor(VideoOutcomeStatus s) => s switch
+    public static StatusKind KindFor(VideoOutcomeStatus s) => s switch
     {
-        VideoOutcomeStatus.Completed => "✅",
-        VideoOutcomeStatus.Skipped => "⏭️",
-        VideoOutcomeStatus.Cancelled => "⏸️",
-        VideoOutcomeStatus.PendingReview => "📝",
-        _ => "❌",
+        VideoOutcomeStatus.Completed => StatusKind.Success,
+        VideoOutcomeStatus.Skipped => StatusKind.Skipped,
+        VideoOutcomeStatus.Cancelled => StatusKind.Cancelled,
+        VideoOutcomeStatus.PendingReview => StatusKind.Review,
+        _ => StatusKind.Error,
     };
+
+    /// <summary>Estado en palabras (la columna «Estado» no depende solo del icono).</summary>
+    public string StatusLabel => Kind == StatusKind.Error ? "con error" : StatusKinds.Label(Kind);
 }

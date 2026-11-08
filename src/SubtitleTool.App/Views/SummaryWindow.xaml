@@ -1,20 +1,57 @@
 <Window x:Class="SubtitleTool.App.Views.SummaryWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Resumen" Width="820" Height="460" MinWidth="520" MinHeight="300"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SubtitleTool.App.ViewModels"
+        xmlns:views="clr-namespace:SubtitleTool.App.Views"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:SummaryViewModel}"
+        Title="Resumen del procesamiento" Width="820" Height="460" MinWidth="520" MinHeight="300"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Style="{StaticResource AppWindow}">
+        Style="{StaticResource AppWindow}"
+        FocusManager.FocusedElement="{Binding ElementName=RowsGrid}">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <TextBlock Text="Resumen del procesamiento  (✅ hecho · ⏭️ saltado · ⏸️ cancelado · ❌ error)" Style="{StaticResource SectionHeader}" />
-        <DataGrid Grid.Row="1" ItemsSource="{Binding}" IsReadOnly="True" CanUserAddRows="False">
+        <StackPanel Margin="0,0,0,8">
+            <TextBlock Text="{Binding TotalsText}" Style="{StaticResource SectionHeader}" Margin="0" />
+            <ItemsControl ItemsSource="{Binding Legend}" Margin="0,4,0,0" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                            <views:StatusIcon Kind="{Binding Kind}" FontSize="12" />
+                            <TextBlock Text="{Binding Label}" Style="{StaticResource Muted}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Style="{StaticResource Muted}" Margin="0,4,0,0" TextWrapping="Wrap"
+                       Visibility="{Binding HasPendingReview, Converter={StaticResource BoolToVis}}"
+                       Text="Las traducciones «por revisar» se abren con doble clic (o Enter) en su fila de la lista principal." />
+        </StackPanel>
+        <DataGrid x:Name="RowsGrid" Grid.Row="1" ItemsSource="{Binding Rows}" IsReadOnly="True" CanUserAddRows="False"
+                  AutomationProperties.Name="Resultado por video">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="" Binding="{Binding Icon}" Width="44" />
-                <DataGridTemplateColumn Header="Video" Width="*" MinWidth="200">
+                <DataGridTemplateColumn Header="Estado" Width="130" SortMemberPath="StatusLabel">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <views:StatusIcon Kind="{Binding Kind}" />
+                                <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource CellText}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Video" Width="*" MinWidth="200" SortMemberPath="Name">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding Name}" Style="{StaticResource CellText}" />

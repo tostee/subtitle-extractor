@@ -155,7 +155,10 @@ public sealed class SettingsAndGlossaryTests : IDisposable
         Assert.Equal(@"E:\MKV", h.Doctor.LastTools?.MkvToolNix);
         Assert.Null(h.Doctor.LastTools?.Ffmpeg);
         Assert.Equal(3, vm.Checks.Count);
-        Assert.Equal("✅ Todo listo.", vm.CheckStatus);
+        Assert.Equal("Todo listo.", vm.CheckStatus);
+        Assert.Equal(StatusKind.Success, vm.CheckStatusKind);
+        Assert.Equal([StatusKind.Success, StatusKind.Success, StatusKind.Warning], vm.Checks.Select(c => c.Kind));
+        Assert.DoesNotContain(vm.Checks, c => c.Text.Contains('✅') || c.Text.Contains('❌'));
         Assert.False(vm.IsChecking);
         Assert.StartsWith("Autodetectado:", vm.DetectedMkvToolNixText);
     }
@@ -306,5 +309,221 @@ public sealed class SettingsAndGlossaryTests : IDisposable
 
         File.WriteAllText(path, "{roto");
         Assert.Throws<InvalidDataException>(() => service.Load(path));
+    }
+
+    [Fact]
+    public void Glossary_Close_WithoutChanges_DoesNotAsk_EmptyRowsDoNotCount()
+    {
+        var h = new Harness();
+        var vm = Editor(h);
+        vm.Load();
+
+        vm.AddTermCommand.Execute(null);   // fila nueva vacía: no es un cambio
+        Assert.False(vm.HasUnsavedChanges);
+        Assert.True(vm.CanClose());
+        Assert.Empty(h.Dialogs.AskSaves);
+    }
+
+    [Fact]
+    public void Glossary_Close_WithChanges_AsksToSave()
+    {
+        var h = new Harness();
+        var vm = Editor(h);
+        vm.Load();
+        vm.Terms.Add(new TermRow { En = "Ithaca", Es = "Ítaca" });
+        Assert.True(vm.HasUnsavedChanges);
+
+        h.Dialogs.AskSaveResult = null;    // Cancelar
+        Assert.False(vm.CanClose());
+        h.Dialogs.AskSaveResult = false;   // No guardar
+        Assert.True(vm.CanClose());
+        Assert.False(h.Glossary.Files.ContainsKey(GlossaryPath));
+
+        h.Dialogs.AskSaveResult = true;    // Guardar
+        Assert.True(vm.CanClose());
+        Assert.Equal("Ítaca", Assert.Single(h.Glossary.Files[GlossaryPath].Terms).Es);
+        Assert.False(vm.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void Glossary_Close_AnswerSave_WithInvalidRows_StaysOpen()
+    {
+        var h = new Harness();
+        var vm = Editor(h);
+        vm.Load();
+        vm.Terms.Add(new TermRow { En = "Ithaca" });   // falta el español
+
+        h.Dialogs.AskSaveResult = true;
+        Assert.False(vm.CanClose());
+        Assert.StartsWith("No se guardó:", vm.StatusText);
+    }
+
+    [Fact]
+    public void Glossary_SavingOrEditingBack_ClearsTheUnsavedState()
+    {
+        var h = new Harness();
+        h.Glossary.Files[GlossaryPath] = new Glossary { Terms = [new GlossaryTerm { En = "Troy", Es = "Troya" }] };
+        var vm = Editor(h);
+        vm.Load();
+        Assert.False(vm.HasUnsavedChanges);
+
+        vm.Terms[0].Es = "Ilión";
+        Assert.True(vm.HasUnsavedChanges);
+        vm.Terms[0].Es = " Troya ";           // vuelve al valor guardado (los espacios no cuentan)
+        Assert.False(vm.HasUnsavedChanges);
+
+        vm.Terms[0].Es = "Ilión";
+        vm.SaveCommand.Execute(null);
+        Assert.False(vm.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void Glossary_AddAndRemoveRows_WithButtons()
+    {
+        var vm = Editor(new Harness());
+        vm.Load();
+        Assert.False(vm.RemoveTermCommand.CanExecute(null));
+
+        vm.AddTermCommand.Execute(null);
+        var term = Assert.Single(vm.Terms);
+        Assert.Same(term, vm.SelectedTerm);
+        Assert.True(vm.RemoveTermCommand.CanExecute(null));
+        vm.RemoveTermCommand.Execute(null);
+        Assert.Empty(vm.Terms);
+
+        vm.AddAddressCommand.Execute(null);
+        Assert.Equal("tú", Assert.Single(vm.Address).Form);
+        vm.SelectedAddress = new object(); // p. ej. la fila «nueva» de la tabla
+        Assert.False(vm.RemoveAddressCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Glossary_Regenerate_CanBeCancelled_AndLocksEditing()
+    {
+        var h = new Harness();
+        var english = Path.Combine(_dir, "c.en.srt");
+        File.WriteAllText(english, "1\r\n00:00:01,000 --> 00:00:02,000\r\nHi\r\n\r\n");
+        var vm = Editor(h, Path.Combine(_dir, "c.glossary.json"), english);
+        vm.Load();
+        vm.Terms.Add(new TermRow { En = "Troy", Es = "Troya" });
+        h.Glossary.RegenerateGate = new TaskCompletionSource();
+
+        var run = vm.RegenerateCommand.ExecuteAsync(null);
+        Assert.True(vm.IsBusy);
+        Assert.False(vm.SaveCommand.CanExecute(null));
+        Assert.False(vm.AddTermCommand.CanExecute(null));
+        Assert.True(vm.CancelRegenerateCommand.CanExecute(null));
+
+        vm.CancelRegenerateCommand.Execute(null);
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.False(vm.IsBusy);
+        Assert.Contains("cancelada", vm.StatusText);
+        Assert.Equal("Troya", Assert.Single(vm.Terms).Es); // no se pisó lo escrito
+        Assert.Empty(h.Glossary.Files);
+        Assert.False(vm.CancelRegenerateCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Glossary_CloseWhileRegenerating_OffersToCancel()
+    {
+        var h = new Harness();
+        var english = Path.Combine(_dir, "d.en.srt");
+        File.WriteAllText(english, "1\r\n00:00:01,000 --> 00:00:02,000\r\nHi\r\n\r\n");
+        var vm = Editor(h, Path.Combine(_dir, "d.glossary.json"), english);
+        vm.Load();
+        h.Glossary.RegenerateGate = new TaskCompletionSource();
+        var run = vm.RegenerateCommand.ExecuteAsync(null);
+
+        h.Dialogs.ConfirmResult = false;   // seguir esperando
+        Assert.False(vm.CanClose());
+        Assert.True(vm.IsBusy);
+
+        h.Dialogs.ConfirmResult = true;    // cancelar y cerrar
+        Assert.True(vm.CanClose());
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Empty(h.Glossary.Files);
+    }
+
+    // ------------------------------------------------------------------ ajustes (detección, errores, comprobación)
+
+    [Fact]
+    public async Task Settings_DetectedFolders_UpdateWithAutodetectAndTypedFolder()
+    {
+        var h = new Harness();
+        h.Library.FfmpegDetected = null;
+        var vm = Settings(h);
+        vm.DetectionDelay = TimeSpan.Zero;
+        Assert.StartsWith("No se encontró FFmpeg", vm.DetectedFfmpegText);
+
+        h.Library.FfmpegDetected = @"C:\ffmpeg\bin";   // p. ej. se instaló con la ventana abierta
+        vm.UseAutodetectFfmpegCommand.Execute(null);   // inmediato
+        Assert.Equal(@"Autodetectado: C:\ffmpeg\bin", vm.DetectedFfmpegText);
+
+        vm.FfmpegDirectory = @"C:\ffmpeg\bin\";        // escrito a mano: en segundo plano
+        await vm.PendingDetection.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(@"Se usará: C:\ffmpeg\bin", vm.DetectedFfmpegText);
+
+        h.Library.MkvDetected = @"D:\MKVToolNix";
+        vm.UseAutodetectCommand.Execute(null);
+        Assert.Equal(@"Autodetectado: D:\MKVToolNix", vm.DetectedMkvToolNixText);
+    }
+
+    [Fact]
+    public async Task Settings_TypingAFolder_DetectsOnlyOnceAfterThePause()
+    {
+        var h = new Harness();
+        var vm = Settings(h);
+        var before = h.Library.FfmpegDetections;
+        vm.DetectionDelay = TimeSpan.FromMilliseconds(200);
+
+        foreach (var text in new[] { @"C", @"C:", @"C:\f", @"C:\ffmpeg\bin" })
+            vm.FfmpegDirectory = text;                    // cada pulsación cancela la anterior
+        Assert.Equal(before, h.Library.FfmpegDetections);   // nada de E/S mientras se escribe
+        await vm.PendingDetection.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(before + 1, h.Library.FfmpegDetections);
+        Assert.Equal(@"Se usará: C:\ffmpeg\bin", vm.DetectedFfmpegText);
+    }
+
+    [Fact]
+    public void Settings_ValidationError_PointsToTheField()
+    {
+        var h = new Harness();
+        var vm = Settings(h);
+        vm.TimeoutText = "0";
+        Assert.False(vm.TrySave());
+        Assert.Equal(SettingsField.Timeout, vm.ErrorField);
+
+        vm.TimeoutText = "10";
+        vm.FfmpegDirectory = Path.Combine(_dir, "no-existe");
+        Assert.False(vm.TrySave());
+        Assert.Equal(SettingsField.FfmpegDirectory, vm.ErrorField);
+
+        vm.NewApiKey = " ";
+        Assert.False(vm.SaveApiKey());
+        Assert.Equal(SettingsField.ApiKey, vm.ErrorField);
+
+        vm.FfmpegDirectory = "";
+        Assert.True(vm.TrySave());
+        Assert.Null(vm.ErrorField);
+        Assert.Equal("", vm.ErrorText);
+    }
+
+    [Fact]
+    public async Task Settings_Check_IsCancelledWhenTheWindowCloses()
+    {
+        var h = new Harness();
+        h.Doctor.Gate = new TaskCompletionSource();
+        var vm = Settings(h);
+
+        var run = vm.CheckCommand.ExecuteAsync(null);
+        Assert.True(vm.IsChecking);
+        vm.CancelPendingWork();
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.False(vm.IsChecking);
+        Assert.Equal("Comprobación cancelada.", vm.CheckStatus);
+        Assert.Empty(vm.Checks);
     }
 }

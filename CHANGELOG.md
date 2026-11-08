@@ -3,6 +3,38 @@
 Formato: una sección `## [X.Y.Z] - AAAA-MM-DD` por versión. Al publicar la etiqueta `vX.Y.Z`, la sección correspondiente
 se usa como notas de la Release (y es lo que la app muestra en «Novedades»).
 
+## [1.2.0] - 2026-11-08
+
+Accesibilidad y pulido de todas las ventanas.
+
+- Accesible con teclado y Narrador: todos los campos tienen nombre y tecla de acceso (Alt + letra subrayada), los
+  mensajes de estado se anuncian solos y el foco del teclado se ve mejor.
+- Alto contraste de Windows: la app usa los colores del sistema y cambia al momento al activarlo o desactivarlo.
+- Iconos de Windows en lugar de emoji para los estados, siempre acompañados de su texto.
+- Las ventanas se ajustan al tamaño de la pantalla (portátiles con escalado al 150 % o más) y las barras ya no se cortan.
+- Revisar traducción:
+  - F3 (siguiente aviso) lleva el cursor al bloque.
+  - Ctrl+S guarda y Ctrl+F va a la búsqueda.
+  - Tab salta de un bloque al siguiente.
+  - Al cerrar con cambios pregunta Guardar / No guardar / Cancelar.
+  - Filtrar es más rápido.
+- Glosario:
+  - Avisa de cambios sin guardar.
+  - «Regenerar» se puede cancelar y no deja el archivo a medias.
+  - Botones para agregar y quitar filas.
+- Ajustes:
+  - Si un dato no es válido, el cursor va al campo.
+  - «Comprobar herramientas» muestra progreso.
+  - La carpeta detectada se actualiza al escribir sin congelar la ventana.
+- Lista principal:
+  - Enter abre la revisión de la fila.
+  - El registro sigue al último mensaje.
+  - «Procesar solo este» y «Reintentar» se activan solo cuando pueden hacer algo.
+- El resumen muestra totales y el estado «por revisar».
+- Las novedades de versión se leen con ajuste de línea.
+- Los avisos de fin de cola (límite de uso, error, resumen) esperan a que cierres la ventana de revisión.
+- Textos en español neutro («costo», «Enter», «Modo de traducción», «registro»).
+
 ## [1.1.1] - 2026-11-08
 
 - Si falta MKVToolNix, ahora solo fallan los `.mkv`: los `.mp4` se siguen procesando. Antes la cola se detenía por

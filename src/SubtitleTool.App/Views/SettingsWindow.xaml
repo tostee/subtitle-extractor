@@ -4,11 +4,23 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:SubtitleTool.App.ViewModels"
+        xmlns:views="clr-namespace:SubtitleTool.App.Views"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
         Title="Ajustes" Width="720" Height="720" MinWidth="600" MinHeight="520"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Style="{StaticResource AppWindow}">
+        Style="{StaticResource AppWindow}" Closing="OnClosing"
+        FocusManager.FocusedElement="{Binding ElementName=BackendCombo}">
+    <Window.Resources>
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource Surface}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+    </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -18,10 +30,10 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="0,0,8,0">
                 <!-- Traducción -->
-                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                <Border Style="{StaticResource Card}">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="210" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
@@ -36,106 +48,132 @@
                         </Grid.RowDefinitions>
                         <TextBlock Grid.ColumnSpan="2" Text="Traducción" Style="{StaticResource SectionHeader}" />
 
-                        <TextBlock Grid.Row="1" Text="Backend por defecto" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="1" Grid.Column="1" Width="220" HorizontalAlignment="Left" Margin="0,4"
-                                  ItemsSource="{Binding Backends}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Backend}" />
+                        <Label Grid.Row="1" Content="_Modo de traducción por defecto" Target="{Binding ElementName=BackendCombo}" Margin="0,0,16,0" />
+                        <ComboBox x:Name="BackendCombo" Grid.Row="1" Grid.Column="1" Width="220" HorizontalAlignment="Left" Margin="0,4"
+                                  ItemsSource="{Binding Backends}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Backend}"
+                                  ToolTip="Suscripción: Claude Code con tu plan (sin costo por uso). API: clave de API, se paga por uso." />
 
-                        <TextBlock Grid.Row="2" Text="Modelo" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="2" Grid.Column="1" Width="220" HorizontalAlignment="Left" Margin="0,4"
+                        <Label Grid.Row="2" Content="M_odelo" Target="{Binding ElementName=ModelCombo}" Margin="0,0,16,0" />
+                        <ComboBox x:Name="ModelCombo" Grid.Row="2" Grid.Column="1" Width="220" HorizontalAlignment="Left" Margin="0,4"
                                   ItemsSource="{Binding Models}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Model}" />
 
-                        <TextBlock Grid.Row="3" Text="Esfuerzo" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="3" Grid.Column="1" Width="220" HorizontalAlignment="Left" Margin="0,4"
+                        <Label Grid.Row="3" Content="_Esfuerzo" Target="{Binding ElementName=EffortCombo}" Margin="0,0,16,0" />
+                        <ComboBox x:Name="EffortCombo" Grid.Row="3" Grid.Column="1" Width="220" HorizontalAlignment="Left" Margin="0,4"
                                   ItemsSource="{Binding Efforts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Effort}" />
 
-                        <TextBlock Grid.Row="4" Text="Tamaño de tramo (bloques)" VerticalAlignment="Center" />
-                        <TextBox Grid.Row="4" Grid.Column="1" Width="100" HorizontalAlignment="Left" Margin="0,4"
-                                 Text="{Binding ChunkSizeText, UpdateSourceTrigger=PropertyChanged}" />
+                        <Label Grid.Row="4" Content="_Tamaño de tramo (bloques)" Target="{Binding ElementName=ChunkSizeBox}" Margin="0,0,16,0" />
+                        <TextBox x:Name="ChunkSizeBox" Grid.Row="4" Grid.Column="1" Width="100" HorizontalAlignment="Left" Margin="0,4"
+                                 Text="{Binding ChunkSizeText, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.HelpText="Número entero entre 1 y 2000." />
 
-                        <TextBlock Grid.Row="5" Text="Tiempo máximo por tramo (min)" VerticalAlignment="Center" />
-                        <TextBox Grid.Row="5" Grid.Column="1" Width="100" HorizontalAlignment="Left" Margin="0,4"
+                        <Label Grid.Row="5" Content="Tiempo má_ximo por tramo (min)" Target="{Binding ElementName=TimeoutBox}" Margin="0,0,16,0" />
+                        <TextBox x:Name="TimeoutBox" Grid.Row="5" Grid.Column="1" Width="100" HorizontalAlignment="Left" Margin="0,4"
                                  Text="{Binding TimeoutText, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.HelpText="Solo con Suscripción (Claude Code): si una llamada tarda más, se detiene (reanudable). Entre 1 y 240 minutos."
                                  ToolTip="Solo con Suscripción (Claude Code): si una llamada tarda más, se detiene (reanudable)." />
 
                         <CheckBox Grid.Row="6" Grid.Column="1" Margin="0,8,0,0" IsChecked="{Binding CreatePlainCopy}"
-                                  Content="Crear copia .srt sin idioma (si no existe ya)" />
+                                  Content="Crear _copia .srt sin idioma (si no existe ya)" />
 
                         <StackPanel Grid.Row="7" Grid.Column="1" Margin="0,8,0,0">
-                            <CheckBox IsChecked="{Binding ReviewBeforeSave}" Content="Revisar la traducción antes de guardar el .es.srt" />
+                            <CheckBox x:Name="ReviewCheck" IsChecked="{Binding ReviewBeforeSave}" Content="_Revisar la traducción antes de guardar el .es.srt"
+                                      AutomationProperties.HelpText="Al terminar, el video queda «revisar»: doble clic o Enter en la fila para ver inglés y español lado a lado, corregir y guardar." />
                             <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="20,4,0,0"
-                                       Text="Al terminar, el video queda «📝 revisar»: doble clic en la fila para ver inglés y español lado a lado, corregir y guardar. La cola sigue con los demás videos sin esperar." />
+                                       Text="Al terminar, el video queda «revisar»: doble clic (o Enter) en la fila para ver inglés y español lado a lado, corregir y guardar. La cola sigue con los demás videos sin esperar." />
                         </StackPanel>
                     </Grid>
                 </Border>
 
                 <!-- MKVToolNix -->
-                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="MKVToolNix" Style="{StaticResource SectionHeader}" />
+                        <Label Content="Carpeta de MK_VToolNix" Target="{Binding ElementName=MkvBox}"
+                               FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8" />
                         <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Autodetectar" Command="{Binding UseAutodetectCommand}" Margin="6,0,0,0" />
-                            <Button DockPanel.Dock="Right" Content="Examinar…" Command="{Binding BrowseMkvToolNixCommand}" Margin="6,0,0,0" />
-                            <TextBox Text="{Binding MkvToolNixDirectory, UpdateSourceTrigger=PropertyChanged}"
+                            <Button DockPanel.Dock="Right" Content="Autodetectar" Command="{Binding UseAutodetectCommand}" Margin="8,0,0,0"
+                                    AutomationProperties.Name="Autodetectar MKVToolNix" />
+                            <Button DockPanel.Dock="Right" Content="Examinar…" Command="{Binding BrowseMkvToolNixCommand}" Margin="8,0,0,0"
+                                    AutomationProperties.Name="Examinar carpeta de MKVToolNix" />
+                            <TextBox x:Name="MkvBox" Text="{Binding MkvToolNixDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.HelpText="Carpeta que contiene mkvmerge.exe y mkvextract.exe. Vacío: autodetección."
                                      ToolTip="Carpeta que contiene mkvmerge.exe y mkvextract.exe. Vacío = autodetección." />
                         </DockPanel>
-                        <TextBlock Text="{Binding DetectedMkvToolNixText}" Style="{StaticResource Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
-                        <TextBlock Text="Déjalo vacío para usar la autodetección." Style="{StaticResource Muted}" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding DetectedMkvToolNixText}" Style="{StaticResource StatusText}" Foreground="{DynamicResource MutedText}" Margin="0,8,0,0" />
+                        <TextBlock Text="Déjalo vacío para usar la autodetección." Style="{StaticResource Muted}" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
 
                 <!-- Actualizaciones -->
-                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Actualizaciones" Style="{StaticResource SectionHeader}" />
-                        <CheckBox IsChecked="{Binding CheckForUpdates}" Content="Buscar versiones nuevas en GitHub al abrir la aplicación" />
+                        <CheckBox IsChecked="{Binding CheckForUpdates}" Content="_Buscar versiones nuevas en GitHub al abrir la aplicación" />
                         <TextBlock Text="Si hay una, aparece un aviso arriba con «Actualizar ahora». También puedes buscar a mano desde la barra de estado."
-                                   Style="{StaticResource Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                   Style="{StaticResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
 
                 <!-- FFmpeg -->
-                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="FFmpeg (solo para videos .mp4)" Style="{StaticResource SectionHeader}" />
+                        <Label Content="Carpeta de _FFmpeg (solo para videos .mp4)" Target="{Binding ElementName=FfmpegBox}"
+                               FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8" />
                         <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Autodetectar" Command="{Binding UseAutodetectFfmpegCommand}" Margin="6,0,0,0" />
-                            <Button DockPanel.Dock="Right" Content="Examinar…" Command="{Binding BrowseFfmpegCommand}" Margin="6,0,0,0" />
-                            <TextBox Text="{Binding FfmpegDirectory, UpdateSourceTrigger=PropertyChanged}"
+                            <Button DockPanel.Dock="Right" Content="Autodetectar" Command="{Binding UseAutodetectFfmpegCommand}" Margin="8,0,0,0"
+                                    AutomationProperties.Name="Autodetectar FFmpeg" />
+                            <Button DockPanel.Dock="Right" Content="Examinar…" Command="{Binding BrowseFfmpegCommand}" Margin="8,0,0,0"
+                                    AutomationProperties.Name="Examinar carpeta de FFmpeg" />
+                            <TextBox x:Name="FfmpegBox" Text="{Binding FfmpegDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.HelpText="Carpeta que contiene ffmpeg.exe y ffprobe.exe. Vacío: autodetección."
                                      ToolTip="Carpeta que contiene ffmpeg.exe y ffprobe.exe. Vacío = autodetección." />
                         </DockPanel>
-                        <TextBlock Text="{Binding DetectedFfmpegText}" Style="{StaticResource Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
-                        <TextBlock Text="Déjalo vacío para usar la autodetección. Los .mkv no lo necesitan." Style="{StaticResource Muted}" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding DetectedFfmpegText}" Style="{StaticResource StatusText}" Foreground="{DynamicResource MutedText}" Margin="0,8,0,0" />
+                        <TextBlock Text="Déjalo vacío para usar la autodetección. Los .mkv no lo necesitan." Style="{StaticResource Muted}" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
 
                 <!-- Clave de API -->
-                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,12">
+                <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="Clave de API de Anthropic (solo backend API)" Style="{StaticResource SectionHeader}" />
-                        <TextBlock Text="{Binding ApiKeyStatus}" Margin="0,0,0,8" TextWrapping="Wrap" />
+                        <Label Content="Clave de _API de Anthropic (solo modo API)" Target="{Binding ElementName=KeyBox}"
+                               FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding ApiKeyStatus}" Style="{StaticResource StatusText}" Margin="0,0,0,8" />
                         <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Borrar" Command="{Binding ClearApiKeyCommand}"
-                                    IsEnabled="{Binding CanClearApiKey}" Margin="6,0,0,0" />
-                            <Button DockPanel.Dock="Right" Content="Guardar clave" Click="OnSaveKey" Margin="6,0,0,0" />
-                            <PasswordBox x:Name="KeyBox" ToolTip="Pega la clave; se guarda cifrada con DPAPI (solo tu usuario de Windows puede leerla)." />
+                            <Button DockPanel.Dock="Right" Content="Borrar clave" Command="{Binding ClearApiKeyCommand}"
+                                    IsEnabled="{Binding CanClearApiKey}" Margin="8,0,0,0" />
+                            <Button DockPanel.Dock="Right" Content="Guardar c_lave" Click="OnSaveKey" Margin="8,0,0,0" />
+                            <PasswordBox x:Name="KeyBox" AutomationProperties.Name="Clave de API de Anthropic"
+                                         ToolTip="Pega la clave; se guarda cifrada con DPAPI (solo tu usuario de Windows puede leerla)." />
                         </DockPanel>
-                        <TextBlock Text="Se guarda cifrada (DPAPI); nunca se muestra completa ni se escribe en settings.json."
-                                   Style="{StaticResource Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                        <TextBlock Text="«Guardar clave» la guarda al momento, sin esperar al botón «Guardar» de abajo (y aunque luego elijas «Cancelar»). Se guarda cifrada (DPAPI); nunca se muestra completa ni se escribe en settings.json."
+                                   Style="{StaticResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
 
                 <!-- Comprobar -->
-                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="6" Padding="14">
+                <Border Style="{StaticResource Card}" Margin="0">
                     <StackPanel>
                         <DockPanel Margin="0,0,0,8">
-                            <Button DockPanel.Dock="Right" Content="Comprobar" Command="{Binding CheckCommand}" />
-                            <TextBlock Text="Comprobación (igual que «subtool doctor»)" Style="{StaticResource SectionHeader}" VerticalAlignment="Center" Margin="0" />
+                            <Button DockPanel.Dock="Right" Content="Com_probar" Command="{Binding CheckCommand}"
+                                    ToolTip="Comprueba MKVToolNix, FFmpeg, Claude Code y la clave de API (lo mismo que «subtool doctor»)." />
+                            <TextBlock Text="Comprobar herramientas" Style="{StaticResource SectionHeader}" VerticalAlignment="Center" Margin="0" />
                         </DockPanel>
-                        <TextBlock Text="{Binding CheckStatus}" Style="{StaticResource Muted}" TextWrapping="Wrap" />
-                        <ItemsControl ItemsSource="{Binding Checks}" Margin="0,6,0,0">
+                        <DockPanel>
+                            <views:StatusIcon DockPanel.Dock="Left" Kind="{Binding CheckStatusKind}" VerticalAlignment="Top" Margin="0,2,6,0" />
+                            <TextBlock Text="{Binding CheckStatus}" Style="{StaticResource StatusText}" Foreground="{DynamicResource MutedText}" />
+                        </DockPanel>
+                        <ProgressBar IsIndeterminate="{Binding IsChecking}" Height="4" Margin="0,8,0,0"
+                                     AutomationProperties.Name="Comprobando"
+                                     Visibility="{Binding IsChecking, Converter={StaticResource BoolToVis}}" />
+                        <ItemsControl ItemsSource="{Binding Checks}" Margin="0,8,0,0">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,2" />
+                                    <DockPanel Margin="0,2">
+                                        <!-- El icono aquí sí lleva nombre: el texto no siempre dice si la comprobación pasó -->
+                                        <views:StatusIcon DockPanel.Dock="Left" Kind="{Binding Kind}" VerticalAlignment="Top" Margin="0,2,6,0"
+                                                          AutomationProperties.Name="{Binding Label}" />
+                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                                    </DockPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -146,10 +184,10 @@
 
         <DockPanel Grid.Row="1" Margin="0,12,0,0" LastChildFill="True">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Content="Guardar" Style="{StaticResource PrimaryButton}" IsDefault="True" Click="OnSave" MinWidth="90" Margin="0,0,6,0" />
+                <Button Content="_Guardar" Style="{StaticResource PrimaryButton}" IsDefault="True" Click="OnSave" MinWidth="90" Margin="0,0,8,0" />
                 <Button Content="Cancelar" IsCancel="True" MinWidth="90" />
             </StackPanel>
-            <TextBlock Text="{Binding ErrorText}" Foreground="#B42318" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+            <TextBlock Text="{Binding ErrorText}" Style="{StaticResource ErrorMessage}" VerticalAlignment="Center" Margin="0,0,12,0" />
         </DockPanel>
     </Grid>
 </Window>

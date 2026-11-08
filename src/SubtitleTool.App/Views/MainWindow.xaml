@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:SubtitleTool.App.ViewModels"
+        xmlns:views="clr-namespace:SubtitleTool.App.Views"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="Subtítulos — extractor y traductor"
@@ -11,10 +12,6 @@
         WindowStartupLocation="CenterScreen"
         Style="{StaticResource AppWindow}"
         AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
-
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -26,62 +23,75 @@
 
         <!-- Barra superior y aviso de actualización -->
         <StackPanel Grid.Row="0">
-        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1"
-                Padding="12,10">
-            <DockPanel LastChildFill="False">
-                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-                    <Button Content="Agregar carpeta…" Command="{Binding AddFolderCommand}" Margin="0,0,6,0" />
-                    <Button Content="Agregar archivos…" Command="{Binding AddFilesCommand}" Margin="0,0,16,0" />
-                    <Button Content="Procesar todo" Command="{Binding ProcessAllCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
-                    <Button Content="Cancelar" Command="{Binding CancelCommand}" Margin="0,0,16,0" />
-                    <Button Content="Vaciar lista" Command="{Binding ClearListCommand}" ToolTip="Quita todos los videos de la lista (no borra archivos)" />
-                </StackPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <TextBlock Text="Backend" VerticalAlignment="Center" Style="{StaticResource Muted}" Margin="0,0,6,0" />
-                    <ComboBox Width="120" ItemsSource="{Binding Backends}" DisplayMemberPath="Label" SelectedValuePath="Value"
-                              SelectedValue="{Binding SelectedBackend}" IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBool}}"
-                              ToolTip="Suscripción: Claude Code con tu plan (sin coste por uso). API: clave de API, se paga por uso." Margin="0,0,14,0" />
-                    <TextBlock Text="Modelo" VerticalAlignment="Center" Style="{StaticResource Muted}" Margin="0,0,6,0" />
-                    <ComboBox Width="120" ItemsSource="{Binding Models}" DisplayMemberPath="Label" SelectedValuePath="Value"
-                              SelectedValue="{Binding SelectedModel}" IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBool}}"
-                              Margin="0,0,14,0" />
-                    <Button Content="Ajustes…" Command="{Binding OpenSettingsCommand}" />
-                </StackPanel>
-            </DockPanel>
-        </Border>
+            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+                    Padding="12,8">
+                <!-- WrapPanel: si la ventana es estrecha, los selectores pasan a una segunda línea en vez de recortarse -->
+                <WrapPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" Margin="0,4,24,4">
+                        <Button Content="Agregar _carpeta…" Command="{Binding AddFolderCommand}" Margin="0,0,8,0" />
+                        <Button Content="Agregar _archivos…" Command="{Binding AddFilesCommand}" Margin="0,0,16,0" />
+                        <Button Content="_Procesar todo" Command="{Binding ProcessAllCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
+                        <Button Content="Cancelar proceso" Command="{Binding CancelCommand}" Margin="0,0,16,0"
+                                ToolTip="Detiene la cola; el avance se guarda y se puede reanudar." />
+                        <Button Content="_Vaciar lista" Command="{Binding ClearListCommand}" ToolTip="Quita todos los videos de la lista (no borra archivos)." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                        <Label Content="_Modo" Target="{Binding ElementName=BackendCombo}" Style="{StaticResource MutedLabel}" Margin="0,0,8,0" />
+                        <ComboBox x:Name="BackendCombo" Width="120" ItemsSource="{Binding Backends}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                  SelectedValue="{Binding SelectedBackend}" IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBool}}"
+                                  AutomationProperties.Name="Modo de traducción"
+                                  ToolTip="Modo de traducción. Suscripción: Claude Code con tu plan (sin costo por uso). API: clave de API, se paga por uso." Margin="0,0,16,0" />
+                        <Label Content="M_odelo" Target="{Binding ElementName=ModelCombo}" Style="{StaticResource MutedLabel}" Margin="0,0,8,0" />
+                        <ComboBox x:Name="ModelCombo" Width="120" ItemsSource="{Binding Models}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                  SelectedValue="{Binding SelectedModel}" IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBool}}"
+                                  Margin="0,0,16,0" />
+                        <Button Content="A_justes…" Command="{Binding OpenSettingsCommand}" />
+                    </StackPanel>
+                </WrapPanel>
+            </Border>
 
-        <Border Background="#E8F0FE" BorderBrush="{StaticResource Accent}" BorderThickness="0,0,0,1" Padding="12,8"
-                Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <TextBlock Text="{Binding UpdateStatusText}" VerticalAlignment="Center" Style="{StaticResource Muted}" Margin="0,0,10,0" />
-                    <Button Content="Novedades" Command="{Binding ViewReleaseNotesCommand}" Margin="0,0,6,0" />
-                    <Button Content="{Binding UpdateButtonText}" Command="{Binding InstallUpdateCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
-                    <Button Content="Más tarde" Command="{Binding DismissUpdateCommand}" />
-                </StackPanel>
-                <TextBlock Text="{Binding UpdateBannerText}" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-            </DockPanel>
-        </Border>
+            <Border Background="{DynamicResource InfoBannerBackground}" BorderBrush="{DynamicResource Accent}" BorderThickness="0,0,0,1" Padding="12,8"
+                    Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <TextBlock Text="{Binding UpdateStatusText}" VerticalAlignment="Center" Style="{StaticResource Muted}" Margin="0,0,12,0"
+                                   AutomationProperties.LiveSetting="Polite" />
+                        <Button Content="Ver novedades" Command="{Binding ViewReleaseNotesCommand}" Margin="0,0,8,0" />
+                        <Button Content="{Binding UpdateButtonText}" Command="{Binding InstallUpdateCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
+                        <Button Content="Más tarde" Command="{Binding DismissUpdateCommand}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <views:StatusIcon Kind="Update" />
+                        <TextBlock Text="{Binding UpdateBannerText}" VerticalAlignment="Center" FontWeight="SemiBold" Style="{StaticResource TrimmedText}"
+                                   AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
         </StackPanel>
 
         <!-- Lista de videos -->
         <Grid Grid.Row="1" Margin="12,12,12,8">
             <DataGrid x:Name="VideosGrid" ItemsSource="{Binding Videos}" SelectedItem="{Binding SelectedVideo}"
                       IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
-                      MouseDoubleClick="OnGridDoubleClick">
+                      MouseDoubleClick="OnGridDoubleClick"
+                      AutomationProperties.Name="Videos"
+                      AutomationProperties.HelpText="Enter o doble clic: revisar la traducción pendiente o ver el registro. Menú contextual: más acciones.">
+                <DataGrid.InputBindings>
+                    <!-- Equivalente de teclado del doble clic -->
+                    <KeyBinding Key="Return" Command="{Binding OpenRowCommand}" CommandParameter="{Binding SelectedVideo}" />
+                </DataGrid.InputBindings>
                 <DataGrid.ContextMenu>
                     <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                        <MenuItem Header="Procesar solo este" Command="{Binding ProcessOneCommand}" CommandParameter="{Binding SelectedVideo}" />
-                        <MenuItem Header="Reintentar" Command="{Binding RetryCommand}" CommandParameter="{Binding SelectedVideo}"
-                                  IsEnabled="{Binding SelectedVideo.HasFailed, FallbackValue=False}" />
+                        <MenuItem Header="_Procesar solo este" Command="{Binding ProcessOneCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="_Reintentar" Command="{Binding RetryCommand}" CommandParameter="{Binding SelectedVideo}" />
                         <Separator />
-                        <MenuItem Header="Abrir carpeta" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedVideo}" />
-                        <MenuItem Header="Revisar traducción…" Command="{Binding ReviewCommand}" CommandParameter="{Binding SelectedVideo}"
+                        <MenuItem Header="Abrir _carpeta" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Re_visar traducción…" Command="{Binding ReviewCommand}" CommandParameter="{Binding SelectedVideo}"
                                   IsEnabled="{Binding SelectedVideo.CanReview, FallbackValue=False}" FontWeight="SemiBold" />
-                        <MenuItem Header="Abrir glosario…" Command="{Binding OpenGlossaryCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Abrir _glosario…" Command="{Binding OpenGlossaryCommand}" CommandParameter="{Binding SelectedVideo}" />
                         <Separator />
-                        <MenuItem Header="Ver log" Command="{Binding ViewLogCommand}" CommandParameter="{Binding SelectedVideo}" />
-                        <MenuItem Header="Abrir log de traducción" Command="{Binding OpenTranslationLogCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Ver r_egistro" Command="{Binding ViewLogCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Abrir registro de _traducción" Command="{Binding OpenTranslationLogCommand}" CommandParameter="{Binding SelectedVideo}" />
                     </ContextMenu>
                 </DataGrid.ContextMenu>
                 <DataGrid.Columns>
@@ -92,26 +102,30 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Pista inglesa" Width="170" MinWidth="120">
+                    <DataGridTemplateColumn Header="Pista en inglés" Width="170" MinWidth="120">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding TrackText}" Style="{StaticResource CellText}" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Inglés" Width="90" MinWidth="80">
+                    <DataGridTemplateColumn Header="Inglés" Width="130" MinWidth="110">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding EnglishText}" Style="{StaticResource CellText}"
-                                           Foreground="{Binding EnglishText, Converter={StaticResource StatusBrush}}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <views:StatusIcon Kind="{Binding EnglishStatus}" />
+                                    <TextBlock Text="{Binding EnglishText}" Style="{StaticResource CellText}" />
+                                </StackPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Español" Width="90" MinWidth="80">
+                    <DataGridTemplateColumn Header="Español" Width="120" MinWidth="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding SpanishText}" Style="{StaticResource CellText}"
-                                           Foreground="{Binding SpanishText, Converter={StaticResource StatusBrush}}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <views:StatusIcon Kind="{Binding SpanishStatus}" />
+                                    <TextBlock Text="{Binding SpanishText}" Style="{StaticResource CellText}" />
+                                </StackPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -120,7 +134,7 @@
                             <DataTemplate>
                                 <Grid Height="22">
                                     <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" IsIndeterminate="{Binding IsProgressIndeterminate}"
-                                                 Maximum="100" Opacity="0.35" />
+                                                 Maximum="100" Opacity="0.35" AutomationProperties.Name="{Binding ProgressText}" />
                                     <TextBlock Text="{Binding ProgressText}" Style="{StaticResource CellText}" Margin="6,0" FontSize="12" />
                                 </Grid>
                             </DataTemplate>
@@ -140,44 +154,68 @@
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
                         Visibility="{Binding HasVideos, Converter={StaticResource InverseBoolToVis}}">
                 <TextBlock Text="Arrastra aquí carpetas o videos .mkv / .mp4" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                <TextBlock Text="o usa «Agregar carpeta…» / «Agregar archivos…»" Style="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                <TextBlock Text="o usa «Agregar carpeta…» / «Agregar archivos…»" Style="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,8,0,0" />
             </StackPanel>
         </Grid>
 
         <!-- Registro -->
-        <Expander Grid.Row="2" Header="Registro" Margin="12,0,12,8" IsExpanded="False">
-            <DockPanel Margin="0,6,0,0">
-                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+        <Expander Grid.Row="2" Header="_Registro" Margin="12,0,12,8" IsExpanded="False">
+            <DockPanel Margin="0,8,0,0">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
                     <Button Content="Abrir carpeta de registros" Command="{Binding OpenLogsFolderCommand}"
                             ToolTip="Los mensajes y errores también se guardan en archivos diarios (se conservan 30 días)." />
                 </StackPanel>
-                <ListBox ItemsSource="{Binding LogLines}" Height="140" FontFamily="Consolas" FontSize="12"
-                         BorderBrush="{StaticResource Border}" ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                <ListBox x:Name="LogList" ItemsSource="{Binding LogLines}" Height="140" FontFamily="Consolas" FontSize="12"
+                         BorderBrush="{DynamicResource Border}" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                         AutomationProperties.Name="Mensajes del registro">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding SpokenText}" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <!-- Ancho fijo: los textos quedan alineados aunque la línea no lleve icono -->
+                                <Border Width="20">
+                                    <views:StatusIcon Kind="{Binding Kind}" FontSize="12" Margin="0" />
+                                </Border>
+                                <TextBlock Text="{Binding Text}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </DockPanel>
         </Expander>
 
         <!-- Barra de estado -->
-        <Border Grid.Row="3" Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0"
-                Padding="12,6">
+        <Border Grid.Row="3" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
+                Padding="12,4">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" MinWidth="160" />
+                    <ColumnDefinition Width="*" MinWidth="120" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" MinWidth="120" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Analizando videos…  " Style="{StaticResource Muted}"
                                Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}" />
-                    <TextBlock Text="{Binding CurrentVideoText}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding CurrentVideoText}" Style="{StaticResource TrimmedText}"
+                               AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
-                    <ProgressBar Width="180" Height="10" Maximum="100" Value="{Binding GlobalProgress, Mode=OneWay}" />
-                    <TextBlock Text="{Binding GlobalProgressText}" Margin="8,0,0,0" MinWidth="70" Style="{StaticResource Muted}" />
+                    <ProgressBar Width="160" Height="10" Maximum="100" Value="{Binding GlobalProgress, Mode=OneWay}"
+                                 AutomationProperties.Name="Progreso total" />
+                    <TextBlock Text="{Binding GlobalProgressText}" Margin="8,0,0,0" MinWidth="70" Style="{StaticResource Muted}"
+                               AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
-                <TextBlock Grid.Column="2" Text="{Binding UsageText}" VerticalAlignment="Center" Style="{StaticResource Muted}" />
-                <Button Grid.Column="3" Margin="16,0,0,0" Padding="8,2" MinHeight="0" Command="{Binding CheckUpdatesCommand}"
-                        ToolTip="Buscar una versión nueva en GitHub">
+                <TextBlock Grid.Column="2" Text="{Binding UsageText}" VerticalAlignment="Center" HorizontalAlignment="Right"
+                           Style="{StaticResource TrimmedText}" Foreground="{DynamicResource MutedText}" />
+                <Button Grid.Column="3" Margin="16,0,0,0" Padding="8,2" Command="{Binding CheckUpdatesCommand}"
+                        ToolTip="Buscar una versión nueva en GitHub"
+                        AutomationProperties.Name="{Binding VersionText, StringFormat='Versión {0}: buscar actualizaciones'}">
                     <TextBlock>
                         <Run Text="{Binding VersionText, Mode=OneWay}" /><Run Text=" · Buscar actualizaciones" />
                     </TextBlock>

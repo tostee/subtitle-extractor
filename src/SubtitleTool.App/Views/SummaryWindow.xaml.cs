@@ -4,5 +4,9 @@ namespace SubtitleTool.App.Views;
 
 public partial class SummaryWindow : Window
 {
-    public SummaryWindow() => InitializeComponent();
+    public SummaryWindow()
+    {
+        InitializeComponent();
+        WindowFit.Attach(this);
+    }
 }

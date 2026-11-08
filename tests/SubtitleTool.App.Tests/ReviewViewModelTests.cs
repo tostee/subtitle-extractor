@@ -122,17 +122,38 @@ public sealed class ReviewViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Close_WithUnsavedChanges_Asks()
+    public async Task Close_WithUnsavedChanges_AsksToSave()
     {
         var (_, english) = await VideoWithDraftAsync();
         var vm = await OpenAsync(english);
         Assert.True(vm.CanClose());
+        Assert.Empty(_h.Dialogs.AskSaves);
 
         vm.Rows[0].Spanish = "Hola.";
-        _h.Dialogs.ConfirmResult = false;
+        _h.Dialogs.AskSaveResult = null;   // Cancelar: se queda en la ventana
         Assert.False(vm.CanClose());
-        _h.Dialogs.ConfirmResult = true;
+        Assert.Contains("borrador", Assert.Single(_h.Dialogs.AskSaves));
+        _h.Dialogs.AskSaveResult = false;  // No guardar: cierra y pierde los cambios
         Assert.True(vm.CanClose());
+        Assert.Equal(ReviewOutcome.None, vm.Outcome);
+    }
+
+    [Fact]
+    public async Task Close_AnswerSave_SavesDraft_ThenClosesItself()
+    {
+        var (_, english) = await VideoWithDraftAsync();
+        var vm = await OpenAsync(english);
+        var closed = new TaskCompletionSource();
+        vm.CloseRequested += () => closed.TrySetResult();
+        vm.Rows[0].Spanish = "Hola.";
+
+        _h.Dialogs.AskSaveResult = true;
+        Assert.False(vm.CanClose()); // no se cierra todavía: primero se guarda
+        await closed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(ReviewOutcome.DraftSaved, vm.Outcome);
+        Assert.False(vm.IsDirty);
+        Assert.Contains("Hola.", File.ReadAllText(new ReviewStore(_h.ReviewRoot).DraftPath(english)));
     }
 
     [Fact]
@@ -160,8 +181,9 @@ public sealed class ReviewViewModelTests : IDisposable
 
         _h.Dialogs.OnReview = r => r.SaveCommand.ExecuteAsync(null);
         await Task.Run(() => main.ReviewCommand.ExecuteAsync(row));
-        Assert.Equal("✅ existe", row.SpanishText);
-        Assert.Contains(main.LogLines, l => l.Contains("revisada y guardada (1 bloque(s) editados)"));
+        Assert.Equal(VideoItemViewModel.ExistsText, row.SpanishText);
+        Assert.Equal(StatusKind.Success, row.SpanishStatus);
+        Assert.Contains(main.LogLines, l => l.Text.Contains("revisada y guardada (1 bloque(s) editados)"));
     }
 
     [Fact]
@@ -189,7 +211,7 @@ public sealed class ReviewViewModelTests : IDisposable
         await Task.Run(() => main.OpenRowCommand.ExecuteAsync(row));
 
         Assert.Equal(0, warningsDuringReview);
-        Assert.Contains(main.LogLines, l => l.Contains("se mostrará al cerrar la revisión"));
+        Assert.Contains(main.LogLines, l => l.Text.Contains("se mostrará al cerrar la revisión"));
         Assert.Single(_h.Dialogs.Warnings); // se muestra al cerrar la revisión
 
         // Sin revisión abierta, el aviso sale en el momento, como siempre.
@@ -212,12 +234,134 @@ public sealed class ReviewViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Issues_HaveAKindAndAPlainText()
+    {
+        var (_, english) = await VideoWithDraftAsync();
+        var vm = await OpenAsync(english);
+
+        vm.Rows[0].Spanish = "";
+        var issue = Assert.Single(vm.Rows[0].Issues);
+        Assert.Equal(StatusKind.Error, issue.Kind);
+        Assert.Equal("vacío", issue.Text);
+        Assert.Equal("error", issue.Label);
+        Assert.Equal("Error: vacío", vm.Rows[0].IssuesText);   // texto para Narrador (HelpText), sin emoji
+
+        vm.Rows[1].Spanish = "El mar.";
+        Assert.Equal(StatusKind.Warning, Assert.Single(vm.Rows[1].Issues).Kind);
+        Assert.StartsWith("Aviso: ", vm.Rows[1].IssuesText);
+    }
+
+    [Fact]
+    public async Task StatusKind_FollowsTheStatusText()
+    {
+        var (_, english) = await VideoWithDraftAsync();
+        var vm = await OpenAsync(english);
+
+        vm.NextIssueCommand.Execute(null);
+        Assert.Equal(StatusKind.Info, vm.StatusKind);
+        vm.Rows[0].Spanish = " ";
+        await vm.SaveCommand.ExecuteAsync(null);                 // bloque vacío: no se puede guardar
+        Assert.Equal(StatusKind.Error, vm.StatusKind);
+        Assert.DoesNotContain("❌", vm.StatusText);
+        vm.StatusText = "otra cosa";                             // texto sin tipo: sin icono
+        Assert.Equal(StatusKind.None, vm.StatusKind);
+    }
+
+    /// <summary>Servicio de revisión que falla de forma inesperada al guardar el borrador.</summary>
+    private sealed class ExplodingDraftService(Services.IReviewService inner) : Services.IReviewService
+    {
+        public bool HasDraft(string? englishPath) => inner.HasDraft(englishPath);
+        public Task<ReviewSession> OpenAsync(string englishPath, CancellationToken ct = default) => inner.OpenAsync(englishPath, ct);
+        public Task SaveDraftAsync(ReviewSession session, CancellationToken ct = default) =>
+            Task.FromException(new InvalidOperationException("fallo inesperado (prueba)"));
+        public Task<ReviewSaveResult> SaveAsync(ReviewSession session, CancellationToken ct = default) => inner.SaveAsync(session, ct);
+        public void Discard(string englishPath) => inner.Discard(englishPath);
+    }
+
+    [Fact]
+    public async Task Close_AnswerSave_UnexpectedError_IsShown_AndTheWindowStaysOpen()
+    {
+        var (_, english) = await VideoWithDraftAsync();
+        var vm = new ReviewViewModel(await _h.Reviews.OpenAsync(english), new ExplodingDraftService(_h.Reviews), _h.Dialogs);
+        var closed = false;
+        vm.CloseRequested += () => closed = true;
+        vm.Rows[0].Spanish = "Hola.";
+
+        await vm.SaveBeforeCloseAsync();
+
+        Assert.False(closed);
+        Assert.False(vm.IsBusy);
+        Assert.True(vm.IsDirty);
+        Assert.Equal(StatusKind.Error, vm.StatusKind);
+        Assert.Contains("fallo inesperado", Assert.Single(_h.Dialogs.Errors));
+    }
+
+    [Fact]
     public async Task Close_IsBlockedWhileSaving()
     {
         var (_, english) = await VideoWithDraftAsync();
         var vm = await OpenAsync(english);
         vm.IsBusy = true;
         Assert.False(vm.CanClose());
+        Assert.Equal(ReviewViewModel.BusyCloseMessage, vm.StatusText); // se explica por qué no se cierra
+        Assert.Empty(_h.Dialogs.AskSaves);
+    }
+
+    [Fact]
+    public async Task NextIssue_WithoutIssues_SaysSo_AndClearsTheMessageWhenItFindsOne()
+    {
+        var (_, english) = await VideoWithDraftAsync();
+        var vm = await OpenAsync(english);
+        var focused = new List<int>();
+        vm.FocusRowRequested += r => focused.Add(r.Number);
+
+        vm.NextIssueCommand.Execute(null);
+        Assert.Equal(ReviewViewModel.NoIssuesMessage, vm.StatusText);
+        Assert.Null(vm.SelectedRow);
+        Assert.Empty(focused);
+
+        vm.Rows[1].Spanish = "El mar.";   // aviso: se pierde la cursiva
+        vm.NextIssueCommand.Execute(null);
+        Assert.Equal(2, vm.SelectedRow!.Number);
+        Assert.Equal([2], focused);        // la vista lleva el cursor a ese bloque
+        Assert.Equal("", vm.StatusText);
+    }
+
+    [Fact]
+    public async Task Save_ShowsProgressInStatus()
+    {
+        var (_, english) = await VideoWithDraftAsync();
+        var vm = await OpenAsync(english);
+        var statuses = new List<string>();
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ReviewViewModel.StatusText))
+                statuses.Add(vm.StatusText);
+        };
+
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal("Guardando…", statuses[0]);
+        Assert.StartsWith("Guardado:", vm.StatusText);
+    }
+
+    [Fact]
+    public async Task Filter_ReplacesTheVisibleRowsInOneStep()
+    {
+        var (_, english) = await VideoWithDraftAsync();
+        var vm = await OpenAsync(english);
+        var rowsChanges = 0;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ReviewViewModel.Rows))
+                rowsChanges++;
+        };
+
+        vm.SearchText = "sea";
+
+        Assert.Equal(1, rowsChanges);      // una sola notificación aunque haya miles de bloques
+        Assert.Equal(2, Assert.Single(vm.Rows).Number);
+        Assert.Contains("mostrando 1", vm.SummaryText);
     }
 
     [Fact]
@@ -240,7 +384,7 @@ public sealed class ReviewViewModelTests : IDisposable
 
         Assert.Null(_h.Dialogs.ReviewShown);
         Assert.False(_h.Reviews.HasDraft(english));
-        Assert.Contains(main.LogLines, l => l.Contains("el inglés había cambiado"));
+        Assert.Contains(main.LogLines, l => l.Text.Contains("el inglés había cambiado"));
     }
 
     [Fact]

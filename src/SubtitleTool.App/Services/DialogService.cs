@@ -48,6 +48,19 @@ public sealed class DialogService : IDialogService
             ? MessageBox.Show(owner, message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)
             : MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)) == MessageBoxResult.Yes;
 
+    public bool? AskSaveChanges(string message, string title = "Subtítulos")
+    {
+        var result = ActiveOwner is { } owner
+            ? MessageBox.Show(owner, message, title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel)
+            : MessageBox.Show(message, title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel);
+        return result switch
+        {
+            MessageBoxResult.Yes => true,
+            MessageBoxResult.No => false,
+            _ => null,
+        };
+    }
+
     public void OpenFolder(string path)
     {
         try
@@ -79,8 +92,8 @@ public sealed class DialogService : IDialogService
         }
     }
 
-    public void ShowText(string title, string text) =>
-        new TextWindow { Owner = ActiveOwner, Title = title, DataContext = text }.ShowDialog();
+    public void ShowText(string title, string text, bool prose = false) =>
+        new TextWindow(prose) { Owner = ActiveOwner, Title = title, DataContext = text }.ShowDialog();
 
     public bool ShowSettings(SettingsViewModel viewModel) =>
         new SettingsWindow { Owner = ActiveOwner, DataContext = viewModel }.ShowDialog() == true;
@@ -92,5 +105,5 @@ public sealed class DialogService : IDialogService
         new ReviewWindow(viewModel) { Owner = ActiveOwner }.ShowDialog();
 
     public void ShowSummary(IReadOnlyList<SummaryRow> rows) =>
-        new SummaryWindow { Owner = ActiveOwner, DataContext = rows }.ShowDialog();
+        new SummaryWindow { Owner = ActiveOwner, DataContext = new SummaryViewModel(rows) }.ShowDialog();
 }

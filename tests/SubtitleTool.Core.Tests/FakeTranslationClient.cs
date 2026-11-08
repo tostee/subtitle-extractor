@@ -34,9 +34,13 @@ public sealed class FakeTranslationClient : ITranslationClient
         return Task.FromResult(custom ?? Ok(request.Items));
     }
 
+    /// <summary>Se ejecuta al pedir el glosario (p. ej. para cancelar justo cuando llega la respuesta).</summary>
+    public Action? OnGlossary { get; set; }
+
     public Task<GlossaryResponse> BuildGlossaryAsync(GlossaryRequest request, CancellationToken cancellationToken = default)
     {
         GlossaryRequests.Add(request);
+        OnGlossary?.Invoke();
         return Task.FromResult(new GlossaryResponse(GlossaryToReturn, StopReasons.EndTurn, new TokenUsage(10, 10, 0, 0)));
     }
 

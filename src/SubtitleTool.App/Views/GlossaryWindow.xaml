@@ -4,11 +4,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:SubtitleTool.App.ViewModels"
+        xmlns:views="clr-namespace:SubtitleTool.App.Views"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:GlossaryEditorViewModel}"
         Title="{Binding Title}" Width="980" Height="680" MinWidth="700" MinHeight="460"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Style="{StaticResource AppWindow}">
+        Style="{StaticResource AppWindow}" Closing="OnClosing"
+        FocusManager.FocusedElement="{Binding ElementName=TermsGrid}">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -19,11 +21,21 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="{Binding GlossaryPath}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,0,0,10" />
+        <TextBlock Grid.Row="0" Text="{Binding GlossaryPath}" Style="{StaticResource TrimmedText}" Foreground="{DynamicResource MutedText}" Margin="0,0,0,12" />
 
-        <TextBlock Grid.Row="1" Text="Términos (personajes, lugares, expresiones)" Style="{StaticResource SectionHeader}" />
-        <DataGrid Grid.Row="2" ItemsSource="{Binding Terms}" CanUserAddRows="True" CanUserDeleteRows="True" RowHeight="NaN"
-                  MinRowHeight="28" SelectionUnit="CellOrRowHeader" HeadersVisibility="All" RowHeaderWidth="16">
+        <DockPanel Grid.Row="1" Margin="0,0,0,8">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Agregar _término" Command="{Binding AddTermCommand}" Margin="0,0,8,0" />
+                <Button Content="_Quitar término" Command="{Binding RemoveTermCommand}"
+                        ToolTip="Quita el término seleccionado (también con Supr sobre la fila)." />
+            </StackPanel>
+            <Label x:Name="TermsLabel" Content="Términos (personajes, lugares, e_xpresiones)" Target="{Binding ElementName=TermsGrid}"
+                   FontSize="14" FontWeight="SemiBold" />
+        </DockPanel>
+        <DataGrid x:Name="TermsGrid" Grid.Row="2" ItemsSource="{Binding Terms}" CanUserAddRows="True" CanUserDeleteRows="True" RowHeight="NaN"
+                  MinRowHeight="32" SelectionUnit="FullRow" SelectedItem="{Binding SelectedTerm}"
+                  IsReadOnly="{Binding IsBusy}"
+                  AutomationProperties.LabeledBy="{Binding ElementName=TermsLabel}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Inglés" Binding="{Binding En, UpdateSourceTrigger=PropertyChanged}" Width="*" ElementStyle="{StaticResource EditorCellText}" />
                 <DataGridTextColumn Header="Español" Binding="{Binding Es, UpdateSourceTrigger=PropertyChanged}" Width="*" ElementStyle="{StaticResource EditorCellText}" />
@@ -31,12 +43,22 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock Grid.Row="3" Text="Tratamiento entre personajes (A habla a B de tú o de usted)" Style="{StaticResource SectionHeader}" Margin="0,14,0,8" />
-        <DataGrid Grid.Row="4" ItemsSource="{Binding Address}" CanUserAddRows="True" CanUserDeleteRows="True" RowHeight="NaN"
-                  MinRowHeight="28" SelectionUnit="CellOrRowHeader" HeadersVisibility="All" RowHeaderWidth="16">
+        <DockPanel Grid.Row="3" Margin="0,16,0,8">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Agregar tr_atamiento" Command="{Binding AddAddressCommand}" Margin="0,0,8,0" />
+                <Button Content="Q_uitar tratamiento" Command="{Binding RemoveAddressCommand}"
+                        ToolTip="Quita el tratamiento seleccionado (también con Supr sobre la fila)." />
+            </StackPanel>
+            <Label x:Name="AddressLabel" Content="Trata_miento entre personajes (A habla a B de tú o de usted)" Target="{Binding ElementName=AddressGrid}"
+                   FontSize="14" FontWeight="SemiBold" />
+        </DockPanel>
+        <DataGrid x:Name="AddressGrid" Grid.Row="4" ItemsSource="{Binding Address}" CanUserAddRows="True" CanUserDeleteRows="True" RowHeight="NaN"
+                  MinRowHeight="32" SelectionUnit="FullRow" SelectedItem="{Binding SelectedAddress}"
+                  IsReadOnly="{Binding IsBusy}"
+                  AutomationProperties.LabeledBy="{Binding ElementName=AddressLabel}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="A" Binding="{Binding A, UpdateSourceTrigger=PropertyChanged}" Width="*" ElementStyle="{StaticResource EditorCellText}" />
-                <DataGridTextColumn Header="B" Binding="{Binding B, UpdateSourceTrigger=PropertyChanged}" Width="*" ElementStyle="{StaticResource EditorCellText}" />
+                <DataGridTextColumn Header="Personaje A (habla)" Binding="{Binding A, UpdateSourceTrigger=PropertyChanged}" Width="*" ElementStyle="{StaticResource EditorCellText}" />
+                <DataGridTextColumn Header="Personaje B (escucha)" Binding="{Binding B, UpdateSourceTrigger=PropertyChanged}" Width="*" ElementStyle="{StaticResource EditorCellText}" />
                 <DataGridComboBoxColumn Header="Forma" Width="110"
                                         ItemsSource="{x:Static vm:GlossaryEditorViewModel.Forms}"
                                         SelectedItemBinding="{Binding Form, UpdateSourceTrigger=PropertyChanged}" />
@@ -44,14 +66,28 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <DockPanel Grid.Row="5" Margin="0,12,0,0">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Content="Regenerar…" Command="{Binding RegenerateCommand}" Margin="0,0,6,0"
-                        ToolTip="Vuelve a generar el glosario con Claude (backend y modelo actuales) y reemplaza este." />
-                <Button Content="Guardar" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}" MinWidth="90" Margin="0,0,6,0" />
+        <Grid Grid.Row="5" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                <DockPanel>
+                    <views:StatusIcon DockPanel.Dock="Left" Kind="{Binding StatusKind}" VerticalAlignment="Top" Margin="0,2,6,0" />
+                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource StatusText}" />
+                </DockPanel>
+                <ProgressBar IsIndeterminate="{Binding IsBusy}" Height="4" Margin="0,6,0,0"
+                             AutomationProperties.Name="Generando glosario"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="Cancelar generación" Command="{Binding CancelRegenerateCommand}" Margin="0,0,8,0"
+                        Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                <Button Content="_Regenerar…" Command="{Binding RegenerateCommand}" Click="OnCommitEdits" Margin="0,0,8,0"
+                        ToolTip="Vuelve a generar el glosario con Claude (modo de traducción y modelo actuales) y reemplaza este." />
+                <Button Content="_Guardar" Command="{Binding SaveCommand}" Click="OnCommitEdits" Style="{StaticResource PrimaryButton}" MinWidth="90" Margin="0,0,8,0" />
                 <Button Content="Cerrar" IsCancel="True" MinWidth="90" />
             </StackPanel>
-            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
-        </DockPanel>
+        </Grid>
     </Grid>
 </Window>

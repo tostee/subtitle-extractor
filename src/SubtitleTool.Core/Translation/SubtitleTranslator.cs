@@ -104,8 +104,11 @@ public sealed class SubtitleTranslator
         if (glossary is null)
             throw new TranslationClientException("No se pudo generar el glosario (respuesta no válida tras los reintentos).");
 
-        await File.WriteAllTextAsync(paths.GlossaryPath, JsonSerializer.Serialize(glossary, TranslationPrompts.IndentedJsonOptions),
-            new UTF8Encoding(false), ct).ConfigureAwait(false);
+        // Con la respuesta ya obtenida, la escritura no se cancela a medias: se escribe a un temporal y se reemplaza
+        // de una vez, para que una cancelación nunca deje el glosario truncado.
+        var temp = paths.GlossaryPath + ".tmp";
+        File.WriteAllText(temp, JsonSerializer.Serialize(glossary, TranslationPrompts.IndentedJsonOptions), new UTF8Encoding(false));
+        File.Move(temp, paths.GlossaryPath, overwrite: true);
         _log.Write($"Glosario guardado: {paths.GlossaryPath} ({glossary.Terms.Count} términos, {glossary.Address.Count} tratamientos)");
         return glossary;
     }
@@ -277,7 +280,7 @@ public sealed class SubtitleTranslator
             store.Delete();
             var draft = _reviews.DraftPath(paths.EnglishPath);
             _log.Write($"Borrador para revisar: {draft} ({translated.Blocks.Count} bloques, {report.WarningCount} advertencias de estilo). " +
-                       $"El .es.srt se escribirá al guardar la revisión. {FormatUsage(_usage)}, coste estimado ${Cost(_usage):0.0000}");
+                       $"El .es.srt se escribirá al guardar la revisión. {FormatUsage(_usage)}, costo estimado ${Cost(_usage):0.0000}");
             return Result(TranslationStatus.PendingReview, paths, doc.Blocks.Count, failures, report,
                 "Traducción lista para revisar antes de guardar.") with { OutputPath = draft };
         }
@@ -304,7 +307,7 @@ public sealed class SubtitleTranslator
         }
 
         store.Delete();
-        _log.Write($"Completado. {FormatUsage(_usage)}, coste estimado ${Cost(_usage):0.0000}");
+        _log.Write($"Completado. {FormatUsage(_usage)}, costo estimado ${Cost(_usage):0.0000}");
         return Result(TranslationStatus.Completed, paths, doc.Blocks.Count, failures, report, "Traducción completada.") with { PlainCopy = plain };
     }
 

@@ -4,9 +4,12 @@
 
     <views:InverseBoolConverter x:Key="InverseBool" />
     <views:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis" />
-    <views:StatusBrushConverter x:Key="StatusBrush" />
+    <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-    <!-- Paleta sobria -->
+    <!--
+        Paleta sobria. Se usa siempre con DynamicResource: con alto contraste, HighContrastPalette
+        sustituye estas claves por los colores del sistema (SystemColors) sin tocar las vistas.
+    -->
     <SolidColorBrush x:Key="WindowBackground" Color="#F4F5F7" />
     <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
     <SolidColorBrush x:Key="Border" Color="#D7DBE0" />
@@ -15,16 +18,31 @@
     <SolidColorBrush x:Key="Accent" Color="#2563EB" />
     <SolidColorBrush x:Key="AccentHover" Color="#1D4ED8" />
     <SolidColorBrush x:Key="AccentPressed" Color="#1E40AF" />
+    <SolidColorBrush x:Key="OnAccentText" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="FocusBorder" Color="#1F2328" />
     <SolidColorBrush x:Key="ButtonHover" Color="#EEF1F5" />
     <SolidColorBrush x:Key="ButtonPressed" Color="#E2E6EC" />
     <SolidColorBrush x:Key="RowSelected" Color="#DCE8FD" />
+    <SolidColorBrush x:Key="RowSelectedBorder" Color="Transparent" />
     <SolidColorBrush x:Key="RowHover" Color="#F1F5FD" />
     <SolidColorBrush x:Key="HeaderBackground" Color="#F8F9FB" />
+    <SolidColorBrush x:Key="GridLine" Color="#ECEEF1" />
+    <SolidColorBrush x:Key="TrackBackground" Color="#E6E9EE" />
+    <SolidColorBrush x:Key="ReadOnlyBackground" Color="#F1F3F6" />
+
+    <!-- Colores de estado (siempre acompañados de texto o icono, nunca como única señal) -->
+    <SolidColorBrush x:Key="SuccessText" Color="#1A7F37" />
+    <SolidColorBrush x:Key="ErrorText" Color="#B42318" />
+    <SolidColorBrush x:Key="WarningText" Color="#B45309" />
+    <SolidColorBrush x:Key="InfoText" Color="#1D4ED8" />
+    <SolidColorBrush x:Key="ErrorBorder" Color="#DC2626" />
+    <SolidColorBrush x:Key="EditedBackground" Color="#FFF8E1" />
+    <SolidColorBrush x:Key="InfoBannerBackground" Color="#E8F0FE" />
 
     <Style TargetType="Window" x:Key="AppWindow">
         <Setter Property="Icon" Value="pack://application:,,,/Subtitulos;component/Assets/Subtitulos.ico" />
-        <Setter Property="Background" Value="{StaticResource WindowBackground}" />
-        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="Background" Value="{DynamicResource WindowBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
         <Setter Property="FontFamily" Value="Segoe UI" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="UseLayoutRounding" Value="True" />
@@ -32,7 +50,7 @@
     </Style>
 
     <Style TargetType="TextBlock" x:Key="Muted">
-        <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+        <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
     </Style>
 
     <Style TargetType="TextBlock" x:Key="SectionHeader">
@@ -41,14 +59,38 @@
         <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
 
+    <!-- Mensaje de error de un formulario (se anuncia a Narrador en cuanto aparece) -->
+    <Style TargetType="TextBlock" x:Key="ErrorMessage">
+        <Setter Property="Foreground" Value="{DynamicResource ErrorText}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="AutomationProperties.LiveSetting" Value="Assertive" />
+    </Style>
+
+    <!-- Texto de estado que cambia (barra de estado, resultado de una acción) -->
+    <Style TargetType="TextBlock" x:Key="StatusText">
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="AutomationProperties.LiveSetting" Value="Polite" />
+    </Style>
+
+    <!-- Etiqueta de un campo (Label con tecla de acceso y Target) -->
+    <Style TargetType="Label">
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style TargetType="Label" x:Key="MutedLabel" BasedOn="{StaticResource {x:Type Label}}">
+        <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
+    </Style>
+
     <!-- Botón normal -->
     <Style TargetType="Button">
-        <Setter Property="Foreground" Value="{StaticResource Text}" />
-        <Setter Property="Background" Value="{StaticResource Surface}" />
-        <Setter Property="BorderBrush" Value="{StaticResource Border}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="12,5" />
-        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="MinHeight" Value="32" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
@@ -60,13 +102,14 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource ButtonHover}" />
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ButtonHover}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource ButtonPressed}" />
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ButtonPressed}" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Bd" Property="BorderThickness" Value="2" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
@@ -79,21 +122,31 @@
 
     <!-- Botón principal -->
     <Style TargetType="Button" x:Key="PrimaryButton" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentText}" />
+        <Setter Property="Background" Value="{DynamicResource Accent}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd" Background="{StaticResource Accent}" CornerRadius="4" SnapsToDevicePixels="True">
-                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          RecognizesAccessKey="True" />
+                    <!-- Borde exterior para el foco de teclado (contraste ≥ 3:1 sobre el fondo de la ventana) -->
+                    <Border x:Name="Focus" BorderBrush="Transparent" BorderThickness="2" CornerRadius="6" Margin="-2"
+                            SnapsToDevicePixels="True">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" SnapsToDevicePixels="True">
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentHover}" />
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentHover}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentPressed}" />
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPressed}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource FocusBorder}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
@@ -106,37 +159,38 @@
 
     <Style TargetType="TextBox">
         <Setter Property="Padding" Value="4,3" />
-        <Setter Property="BorderBrush" Value="{StaticResource Border}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinHeight" Value="32" />
     </Style>
 
     <Style TargetType="PasswordBox">
         <Setter Property="Padding" Value="4,3" />
-        <Setter Property="BorderBrush" Value="{StaticResource Border}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinHeight" Value="32" />
     </Style>
 
     <Style TargetType="ComboBox">
-        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinHeight" Value="32" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Padding" Value="6,3" />
     </Style>
 
     <Style TargetType="ProgressBar">
-        <Setter Property="Foreground" Value="{StaticResource Accent}" />
-        <Setter Property="Background" Value="#E6E9EE" />
+        <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+        <Setter Property="Background" Value="{DynamicResource TrackBackground}" />
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
     <!-- DataGrid -->
     <Style TargetType="DataGrid">
-        <Setter Property="Background" Value="{StaticResource Surface}" />
-        <Setter Property="BorderBrush" Value="{StaticResource Border}" />
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="GridLinesVisibility" Value="Horizontal" />
-        <Setter Property="HorizontalGridLinesBrush" Value="#ECEEF1" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource GridLine}" />
         <Setter Property="HeadersVisibility" Value="Column" />
         <Setter Property="RowHeaderWidth" Value="0" />
         <Setter Property="AutoGenerateColumns" Value="False" />
@@ -144,21 +198,29 @@
         <Setter Property="SelectionMode" Value="Single" />
         <Setter Property="RowHeight" Value="34" />
         <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
     </Style>
 
     <Style TargetType="DataGridColumnHeader">
-        <Setter Property="Background" Value="{StaticResource HeaderBackground}" />
-        <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+        <Setter Property="Background" Value="{DynamicResource HeaderBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Padding" Value="8,6" />
-        <Setter Property="BorderBrush" Value="{StaticResource Border}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
         <Setter Property="BorderThickness" Value="0,0,1,1" />
     </Style>
 
+    <!-- Fila: el borde (transparente salvo en alto contraste) marca la selección sin depender del relleno -->
     <Style TargetType="DataGridRow">
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{StaticResource RowHover}" />
+                <Setter Property="Background" Value="{DynamicResource RowHover}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource RowSelectedBorder}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -177,10 +239,16 @@
         </Setter>
         <Style.Triggers>
             <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="{StaticResource RowSelected}" />
-                <Setter Property="Foreground" Value="{StaticResource Text}" />
+                <Setter Property="Background" Value="{DynamicResource RowSelected}" />
+                <Setter Property="Foreground" Value="{DynamicResource Text}" />
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- Celda que no se edita: fuera del recorrido con Tab (Tab salta de un campo editable al siguiente) -->
+    <Style TargetType="DataGridCell" x:Key="StaticCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="KeyboardNavigation.IsTabStop" Value="False" />
     </Style>
 
     <!-- Texto de celda con recorte y tooltip -->
@@ -189,6 +257,9 @@
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
     </Style>
+
+    <!-- Texto con recorte y tooltip fuera de tablas (rutas, avisos) -->
+    <Style TargetType="TextBlock" x:Key="TrimmedText" BasedOn="{StaticResource CellText}" />
 
     <!-- Texto de celda en editores (glosario): permite saltos de línea -->
     <Style TargetType="TextBlock" x:Key="EditorCellText">

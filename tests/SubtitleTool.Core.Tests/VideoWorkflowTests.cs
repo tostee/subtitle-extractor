@@ -65,7 +65,7 @@ public sealed class VideoWorkflowTests : IDisposable
     public void FormatCost_SubscriptionShowsApiEquivalent()
     {
         Assert.Equal("incluido en la suscripción (equivalente API ~$1.2346)", VideoWorkflow.FormatCost(1.23456m, claudeCode: true));
-        Assert.Equal("coste estimado $0.5000", VideoWorkflow.FormatCost(0.5m, claudeCode: false));
+        Assert.Equal("costo estimado $0.5000", VideoWorkflow.FormatCost(0.5m, claudeCode: false));
     }
 
     private VideoProcessor Processor(Func<VideoProcessingOptions, ITranslationClient?> client) =>
