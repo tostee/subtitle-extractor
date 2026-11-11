@@ -24,6 +24,12 @@ public sealed class AppSettings
     /// <summary>Buscar versiones nuevas en GitHub al abrir la app.</summary>
     [JsonPropertyName("checkForUpdates")] public bool CheckForUpdates { get; set; } = true;
 
+    /// <summary>Estilo de esta pasada (no se guarda: la versión cubana se pide fila a fila desde el menú contextual).</summary>
+    [JsonIgnore] public TranslationStyle Style { get; set; } = TranslationStyle.Neutral;
+
+    /// <summary>Sobrescribir la salida si ya existe (no se guarda; p. ej. rehacer la versión cubana).</summary>
+    [JsonIgnore] public bool Force { get; set; }
+
     [JsonIgnore] public MediaToolDirectories Tools => new(MkvToolNixDirectory, FfmpegDirectory);
 
     [JsonIgnore] public bool IsClaudeCode => Backend == TranslationBackends.ClaudeCode;
@@ -53,6 +59,8 @@ public sealed class AppSettings
             ChunkSize = ChunkSize,
             NoPlainCopy = !CreatePlainCopy,
             ReviewBeforeSave = ReviewBeforeSave,
+            Style = Style,
+            Force = Force,
         },
         Timeout = TimeSpan.FromMinutes(TimeoutMinutes),
     };

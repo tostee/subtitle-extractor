@@ -84,6 +84,7 @@ public sealed partial class MainViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ClearListCommand))]
     [NotifyCanExecuteChangedFor(nameof(ProcessOneCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TranslateCubanCommand))]
     private bool _isProcessing;
 
     [ObservableProperty] private bool _isScanning;
@@ -95,6 +96,7 @@ public sealed partial class MainViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(ProcessOneCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TranslateCubanCommand))]
     private bool _isCancelling;
 
     public bool HasVideos => Videos.Count > 0;
@@ -505,6 +507,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             ProcessOneCommand.NotifyCanExecuteChanged();
             RetryCommand.NotifyCanExecuteChanged();
+            TranslateCubanCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -552,6 +555,29 @@ public sealed partial class MainViewModel : ObservableObject
     private Task RetryAsync(VideoItemViewModel? row) => ProcessOneAsync(row);
 
     private bool CanRetry(VideoItemViewModel? row) => CanProcessOne(row) && row!.HasFailed;
+
+    /// <summary>
+    /// Versión en cubano callejero (para reírse): va a <c>X.es-cu.srt</c>, aparte de la traducción normal, y se añade a la
+    /// cola como «Procesar solo este». Si ya existe, pregunta antes de rehacerla.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanTranslateCuban), AllowConcurrentExecutions = true)]
+    private Task TranslateCubanAsync(VideoItemViewModel? row)
+    {
+        if (row is null || !row.CanTranslateCuban)
+            return Task.CompletedTask;
+        var force = false;
+        if (row.CubanPath is { } cuban && File.Exists(cuban))
+        {
+            if (!_dialogs.Confirm($"Ya existe la versión cubana:\n{Path.GetFileName(cuban)}\n\n¿Hacerla de nuevo y reemplazarla?", "Versión cubana"))
+                return Task.CompletedTask;
+            force = true;
+        }
+        row.MarkQueued(TranslationStyle.Cuban, force);
+        Log($"{row.Name}: en cola la versión cubana (se guardará como {Path.GetFileName(row.CubanPath)}).");
+        return IsProcessing ? Task.CompletedTask : RunQueueAsync(showSummary: false);
+    }
+
+    private bool CanTranslateCuban(VideoItemViewModel? row) => !IsCancelling && row is { CanTranslateCuban: true };
 
     [RelayCommand(CanExecute = nameof(CanCancel))]
     private void Cancel()
@@ -648,7 +674,10 @@ public sealed partial class MainViewModel : ObservableObject
             var status = await _library.ScanAsync(row.VideoPath, _settings.Tools, ct);
             row.ApplyStatus(status);
             var progress = new Progress<VideoProgress>(p => OnProgress(row, p));
-            outcome = await _processing.ProcessAsync(status, _settings.Clone(), progress, ct);
+            var settings = _settings.Clone();
+            settings.Style = row.QueuedStyle;
+            settings.Force = row.QueuedForce;
+            outcome = await _processing.ProcessAsync(status, settings, progress, ct);
         }
         catch (OperationCanceledException)
         {

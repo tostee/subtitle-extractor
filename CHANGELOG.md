@@ -3,6 +3,16 @@
 Formato: una sección `## [X.Y.Z] - AAAA-MM-DD` por versión. Al publicar la etiqueta `vX.Y.Z`, la sección correspondiente
 se usa como notas de la Release (y es lo que la app muestra en «Novedades»).
 
+## [1.3.0] - 2026-11-10
+
+Versión cubana de los subtítulos, para reírse en grupo.
+
+- Nuevo: clic derecho en un video → «Versión cubana (vulgar, para reírse)…». Traduce al cubano de la calle, con todos los
+  personajes hablando como cubanos de barrio y muchas malas palabras. En consola: `subtool translate <x.en.srt> --cubano`.
+- Se guarda aparte, en `<video>.es-cu.srt`: no toca la traducción normal (`.es.srt`), no crea la copia `.srt` sin idioma
+  ni pasa por la revisión. Si falta el inglés, lo extrae primero; si ya existe la versión cubana, pregunta antes de rehacerla.
+- Su avance se guarda por separado: hacer la versión cubana no pierde el de una traducción normal a medias.
+
 ## [1.2.0] - 2026-11-08
 
 Accesibilidad y pulido de todas las ventanas.

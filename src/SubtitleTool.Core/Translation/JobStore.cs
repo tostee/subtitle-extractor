@@ -32,9 +32,10 @@ public sealed class JobStore
 {
     public string Directory { get; }
 
-    public JobStore(string jobsRoot, string englishPath)
+    /// <param name="style">La versión cubana se guarda en <c>&lt;hash&gt;-cu</c>: no pisa el avance de la traducción normal.</param>
+    public JobStore(string jobsRoot, string englishPath, TranslationStyle style = TranslationStyle.Neutral)
     {
-        Directory = Path.Combine(jobsRoot, ComputeHash(englishPath));
+        Directory = Path.Combine(jobsRoot, ComputeHash(englishPath) + (style == TranslationStyle.Cuban ? "-cu" : ""));
     }
 
     public static string ComputeHash(string englishPath)

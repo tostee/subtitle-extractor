@@ -95,6 +95,17 @@ public sealed partial class VideoItemViewModel : ObservableObject
 
     public string? EnglishPath => Status?.EnglishPath;
 
+    /// <summary>Se puede pedir la versión cubana: hay una pista en inglés .srt (extraída o por extraer).</summary>
+    public bool CanTranslateCuban => !IsBusy && !IsQueued && Status is { } st && EnglishPath is { } en && TranslationPaths.TryFromEnglish(en, out _)
+                                     && VideoWorkflow.Plan(st, force: true).Kind == VideoPlanKind.Process;
+
+    /// <summary>Ruta de la versión cubana (<c>X.es-cu.srt</c>), si la pista en inglés es .srt.</summary>
+    public string? CubanPath => EnglishPath is { } en && TranslationPaths.TryFromEnglish(en, out var p) ? p!.CubanPath : null;
+
+    /// <summary>Estilo y sobrescritura con que se procesará la fila al salir de la cola.</summary>
+    public TranslationStyle QueuedStyle { get; private set; } = TranslationStyle.Neutral;
+    public bool QueuedForce { get; private set; }
+
     public IReadOnlyList<string> LogLines => _log;
 
     partial void OnStateChanged(RowState value)
@@ -103,6 +114,7 @@ public sealed partial class VideoItemViewModel : ObservableObject
         OnPropertyChanged(nameof(IsQueued));
         OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(HasFailed));
+        OnPropertyChanged(nameof(CanTranslateCuban));
     }
 
     partial void OnStatusChanged(VideoStatus? value)
@@ -110,6 +122,8 @@ public sealed partial class VideoItemViewModel : ObservableObject
         OnPropertyChanged(nameof(GlossaryPath));
         OnPropertyChanged(nameof(IsReviewPending));
         OnPropertyChanged(nameof(CanReview));
+        OnPropertyChanged(nameof(CanTranslateCuban));
+        OnPropertyChanged(nameof(CubanPath));
     }
 
     /// <summary>Registro de la fila (texto plano: el tipo va en palabras, p. ej. «[error] …»).</summary>
@@ -190,12 +204,14 @@ public sealed partial class VideoItemViewModel : ObservableObject
         };
     }
 
-    public void MarkQueued()
+    public void MarkQueued(TranslationStyle style = TranslationStyle.Neutral, bool force = false)
     {
+        QueuedStyle = style;
+        QueuedForce = force;
         State = RowState.Queued;
         ProgressValue = 0;
         IsProgressIndeterminate = false;
-        ProgressText = "en cola";
+        ProgressText = style == TranslationStyle.Cuban ? "en cola (versión cubana)" : "en cola";
     }
 
     public void Unqueue()
@@ -221,7 +237,7 @@ public sealed partial class VideoItemViewModel : ObservableObject
         if (State != RowState.Processing)
             return;
         ProgressText = FormatProgress(p);
-        if (p.Stage == VideoProgress.Translating)
+        if (p.Stage == VideoProgress.Translating && QueuedStyle == TranslationStyle.Neutral)
             SpanishText = InProgressText;
         if (p.Translation is { ChunkCount: > 0, BlocksTotal: > 0 } t)
         {
@@ -254,6 +270,29 @@ public sealed partial class VideoItemViewModel : ObservableObject
         if (o.LogPath is not null)
             LogPath = o.LogPath;
         Detail = o.Detail;
+        if (o.Style == TranslationStyle.Cuban)
+        {
+            // La versión cubana no cambia la columna Español (que es la traducción normal).
+            if (Status is { } st)
+                SpanishText = st.SpanishExisting.Count > 0 ? ExistsText : st.ReviewPending ? ReviewText : PendingText;
+            if (o.Status == VideoOutcomeStatus.Completed)
+                ProgressValue = 100;
+            ProgressText = o.Status switch
+            {
+                VideoOutcomeStatus.Completed => "versión cubana lista",
+                VideoOutcomeStatus.Skipped => "versión cubana ya existía",
+                VideoOutcomeStatus.Cancelled => "versión cubana cancelada (reanudable)",
+                _ => o.IsUsageLimit ? "en pausa (límite de uso)" : "versión cubana con error",
+            };
+            if (o.Status == VideoOutcomeStatus.Completed && o.Translation?.OutputPath is { } output)
+                Detail = o.Detail + " · " + Path.GetFileName(output);
+            AddLog(o.Detail, SummaryRow.KindFor(o.Status));
+            foreach (var m in o.Messages)
+                AddLog("   " + m);
+            if (o.LogPath is not null)
+                AddLog("   Registro de traducción: " + o.LogPath);
+            return;
+        }
         switch (o.Status)
         {
             case VideoOutcomeStatus.Completed:

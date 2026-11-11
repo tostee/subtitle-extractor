@@ -16,7 +16,7 @@ internal static class TranslationCommands
 {
     private static readonly HashSet<string> TranslateOptions = new(StringComparer.OrdinalIgnoreCase) { "backend", "model", "effort", "chunk", "timeout" };
     private static readonly HashSet<string> TranslateFlags = new(StringComparer.OrdinalIgnoreCase)
-        { "dry-run", "restart", "force", "no-plain-copy", "regenerate-glossary", "review" };
+        { "dry-run", "restart", "force", "no-plain-copy", "regenerate-glossary", "review", "cubano" };
 
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -67,6 +67,7 @@ internal static class TranslationCommands
             NoPlainCopy = a.Has("no-plain-copy"),
             ReviewBeforeSave = a.Has("review"),
             RegenerateGlossary = a.Has("regenerate-glossary"),
+            Style = a.Has("cubano") ? TranslationStyle.Cuban : TranslationStyle.Neutral,
         }, a.Has("dry-run"), timeout);
     }
 
@@ -100,9 +101,11 @@ internal static class TranslationCommands
     public static async Task<int> TranslateAsync(IEnumerable<string> args, CancellationToken ct)
     {
         var a = ParsedArgs.Parse(args, TranslateOptions, TranslateFlags);
-        a.RequirePositionals(1, "subtool translate <archivo.en.srt> [--backend claude-code|api] [--model M] [--effort E] [--chunk N] [--timeout MIN] [--dry-run] [--restart] [--force] [--no-plain-copy] [--regenerate-glossary]");
+        a.RequirePositionals(1, "subtool translate <archivo.en.srt> [--backend claude-code|api] [--model M] [--effort E] [--chunk N] [--timeout MIN] [--dry-run] [--restart] [--force] [--no-plain-copy] [--regenerate-glossary] [--review] [--cubano]");
         var paths = RequireEnglishSrt(a.Positionals[0]);
         var s = ParseSettings(a);
+        if (s.Options.Style == TranslationStyle.Cuban)
+            paths = paths with { SpanishPath = paths.CubanPath }; // la versión cubana va a su propio archivo
 
         var client = CreateClient(s);
         if (client is null)
@@ -203,7 +206,9 @@ internal static class TranslationCommands
                         Console.WriteLine($"   ⚠️  Ya existe {Path.GetFileName(r.PlainCopyPath)} (sin idioma): no se tocó.");
                         break;
                     case PlainCopyStatus.Disabled:
-                        Console.WriteLine("   Copia sin idioma desactivada (--no-plain-copy).");
+                        Console.WriteLine(s.Options.Style == TranslationStyle.Cuban
+                            ? "   Versión cubana: sin copia sin idioma (el .srt es de la traducción normal)."
+                            : "   Copia sin idioma desactivada (--no-plain-copy).");
                         break;
                 }
                 break;

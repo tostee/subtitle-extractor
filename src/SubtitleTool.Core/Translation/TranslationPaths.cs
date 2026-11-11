@@ -4,12 +4,18 @@ namespace SubtitleTool.Core.Translation;
 
 /// <summary>
 /// Rutas derivadas de un subtítulo en inglés: <c>X.en.srt</c> → <c>X.es.srt</c>, <c>X.en.sdh.srt</c> → <c>X.es.sdh.srt</c>,
-/// copia sin idioma <c>X.srt</c> y glosario <c>X.glossary.json</c>.
+/// copia sin idioma <c>X.srt</c>, versión cubana <c>X.es-cu.srt</c> y glosario <c>X.glossary.json</c>.
 /// </summary>
 public sealed partial record TranslationPaths(string EnglishPath, string SpanishPath, string PlainCopyPath, string GlossaryPath, bool IsSdh)
 {
     [GeneratedRegex(@"^(?<base>.+)\.en(?<sdh>\.sdh)?\.srt$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EnglishNameRegex();
+
+    /// <summary>Versión cubana (<see cref="TranslationStyle.Cuban"/>): <c>X.es-cu.srt</c> / <c>X.es-cu.sdh.srt</c>.</summary>
+    public string CubanPath => SpanishPath[..^(IsSdh ? ".es.sdh.srt" : ".es.srt").Length] + ".es-cu" + (IsSdh ? ".sdh" : "") + ".srt";
+
+    /// <summary>Archivo de salida según el estilo.</summary>
+    public string OutputPath(TranslationStyle style) => style == TranslationStyle.Cuban ? CubanPath : SpanishPath;
 
     public static bool TryFromEnglish(string englishPath, out TranslationPaths? paths)
     {

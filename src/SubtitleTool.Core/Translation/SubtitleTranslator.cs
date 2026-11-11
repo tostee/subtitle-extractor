@@ -19,6 +19,17 @@ public sealed class SubtitleTranslator
     private readonly ReviewStore _reviews;
     private ITranslationLog _log = NullTranslationLog.Instance;
 
+    private bool IsCuban => _options.Style == TranslationStyle.Cuban;
+    private string ChunkSystemPrompt => TranslationPrompts.SystemPromptFor(_options.Style);
+    private string ChunkPromptVersion => TranslationPrompts.PromptVersionFor(_options.Style);
+
+    /// <summary>Rutas con el archivo de salida del estilo elegido en <see cref="TranslationPaths.SpanishPath"/>.</summary>
+    private TranslationPaths PathsFor(string englishPath)
+    {
+        var paths = TranslationPaths.FromEnglish(englishPath);
+        return IsCuban ? paths with { SpanishPath = paths.CubanPath } : paths;
+    }
+
     private TokenUsage _usage = TokenUsage.Zero;
     private readonly List<string> _warnings = [];
 
@@ -28,7 +39,8 @@ public sealed class SubtitleTranslator
         if (options.ChunkSize < 1)
             throw new ArgumentException("El tamaño de tramo debe ser >= 1.", nameof(options));
         _client = client;
-        _options = options;
+        // La versión cubana va a su propio archivo: sin revisión y sin copia sin idioma (X.srt es de la traducción normal).
+        _options = options.Style == TranslationStyle.Cuban ? options with { ReviewBeforeSave = false, NoPlainCopy = true } : options;
         _jobsRoot = jobsRoot ?? AppPaths.Jobs;
         _pricing = ModelPricing.For(options.Model);
     }
@@ -118,7 +130,7 @@ public sealed class SubtitleTranslator
     /// <summary>Cuenta tokens (sin traducir) y estima el coste.</summary>
     public async Task<CostEstimate> EstimateAsync(string englishPath, CancellationToken ct = default)
     {
-        var paths = TranslationPaths.FromEnglish(englishPath);
+        var paths = PathsFor(englishPath);
         var doc = await SrtParser.ParseFileAsync(paths.EnglishPath, ct).ConfigureAwait(false);
         var all = ToItems(doc).Where(i => !doc.Blocks[i.Id - 1].IsEmpty).ToList();
 
@@ -136,7 +148,7 @@ public sealed class SubtitleTranslator
 
         // Tokens del prompt de sistema = (sistema + mensaje mínimo) − (mensaje mínimo).
         const string probe = ".";
-        var withSystem = await _client.CountTokensAsync(TranslationPrompts.SystemPrompt, probe, ct).ConfigureAwait(false);
+        var withSystem = await _client.CountTokensAsync(ChunkSystemPrompt, probe, ct).ConfigureAwait(false);
         var without = await _client.CountTokensAsync(null, probe, ct).ConfigureAwait(false);
         var systemTokens = Math.Max(0, withSystem - without);
 
@@ -147,7 +159,7 @@ public sealed class SubtitleTranslator
         {
             // El contexto real será el texto ya traducido; aquí se aproxima con el inglés.
             var msg = TranslationPrompts.BuildChunkUserMessage(glossary, context, chunk);
-            chunkTokens.Add(await _client.CountTokensAsync(TranslationPrompts.SystemPrompt, msg, ct).ConfigureAwait(false));
+            chunkTokens.Add(await _client.CountTokensAsync(ChunkSystemPrompt, msg, ct).ConfigureAwait(false));
             context = chunk.TakeLast(_options.ContextSize).ToList();
         }
 
@@ -164,7 +176,7 @@ public sealed class SubtitleTranslator
         _usage = TokenUsage.Zero;
         _warnings.Clear();
 
-        var paths = TranslationPaths.FromEnglish(englishPath);
+        var paths = PathsFor(englishPath);
         if (!File.Exists(paths.EnglishPath))
             throw new FileNotFoundException($"No existe el archivo: {paths.EnglishPath}", paths.EnglishPath);
 
@@ -174,11 +186,14 @@ public sealed class SubtitleTranslator
             {
                 Status = TranslationStatus.SkippedExists,
                 OutputPath = paths.SpanishPath,
-                Message = "La traducción ya existe; no se sobrescribe (usa --force).",
+                Message = IsCuban
+                    ? "La versión cubana ya existe; no se sobrescribe (usa --force)."
+                    : "La traducción ya existe; no se sobrescribe (usa --force).",
             };
         }
 
-        switch (_reviews.GetState(paths.EnglishPath))
+        // Los borradores de revisión son de la traducción normal: la versión cubana no los mira ni los toca.
+        switch (IsCuban ? DraftState.None : _reviews.GetState(paths.EnglishPath))
         {
             case DraftState.Valid when !_options.Force:
                 return Result(TranslationStatus.PendingReview, paths, 0, [], null,
@@ -192,7 +207,8 @@ public sealed class SubtitleTranslator
             // Válido con --force: se conserva hasta que haya un borrador o un .es.srt nuevo (si se cancela, no se pierde).
         }
 
-        _log.Write($"Trabajo: {paths.EnglishPath} → {paths.SpanishPath}; backend={_options.Backend}, modelo={_options.Model}, esfuerzo={_options.Effort}, tramo={_options.ChunkSize}, prompt v{TranslationPrompts.PromptVersion}");
+        _log.Write($"Trabajo: {paths.EnglishPath} → {paths.SpanishPath}; backend={_options.Backend}, modelo={_options.Model}, esfuerzo={_options.Effort}, tramo={_options.ChunkSize}, prompt v{ChunkPromptVersion}" +
+                   (IsCuban ? ", estilo cubano" : ""));
 
         var doc = await SrtParser.ParseFileAsync(paths.EnglishPath, ct).ConfigureAwait(false);
         var allItems = ToItems(doc);
@@ -286,7 +302,7 @@ public sealed class SubtitleTranslator
         }
 
         await SrtWriter.WriteFileAsync(paths.SpanishPath, translated, ct).ConfigureAwait(false);
-        if (_reviews.HasDraft(paths.EnglishPath))
+        if (!IsCuban && _reviews.HasDraft(paths.EnglishPath))
             _reviews.Delete(paths.EnglishPath); // un borrador anterior ya no sirve: hay .es.srt nuevo (--force)
         _log.Write($"Escrito: {paths.SpanishPath} ({translated.Blocks.Count} bloques, {report.WarningCount} advertencias de estilo)");
 
@@ -313,7 +329,7 @@ public sealed class SubtitleTranslator
 
     private JobStore PrepareStore(TranslationPaths paths)
     {
-        var store = new JobStore(_jobsRoot, paths.EnglishPath);
+        var store = new JobStore(_jobsRoot, paths.EnglishPath, _options.Style);
         if (_options.Restart && store.Exists)
         {
             _log.Write("--restart: se borra el estado anterior");
@@ -322,7 +338,7 @@ public sealed class SubtitleTranslator
         var job = store.LoadJob();
         var jobBackend = string.IsNullOrEmpty(job?.Backend) ? TranslationBackends.Api : job.Backend;
         if (job is not null &&
-            (jobBackend != _options.Backend || job.Model != _options.Model || job.ChunkSize != _options.ChunkSize || job.PromptVersion != TranslationPrompts.PromptVersion))
+            (jobBackend != _options.Backend || job.Model != _options.Model || job.ChunkSize != _options.ChunkSize || job.PromptVersion != ChunkPromptVersion))
         {
             var msg = $"El trabajo guardado usaba otra configuración (backend {jobBackend}, modelo {job.Model}, tramo {job.ChunkSize}, prompt v{job.PromptVersion}); se empieza de cero.";
             _warnings.Add(msg);
@@ -338,7 +354,7 @@ public sealed class SubtitleTranslator
                 Backend = _options.Backend,
                 Model = _options.Model,
                 ChunkSize = _options.ChunkSize,
-                PromptVersion = TranslationPrompts.PromptVersion,
+                PromptVersion = ChunkPromptVersion,
                 Created = DateTimeOffset.Now,
             });
         }
@@ -366,7 +382,7 @@ public sealed class SubtitleTranslator
             var request = new ChunkRequest
             {
                 ChunkNumber = chunkNumber,
-                SystemPrompt = TranslationPrompts.SystemPrompt,
+                SystemPrompt = ChunkSystemPrompt,
                 UserMessage = TranslationPrompts.BuildChunkUserMessage(glossary, context, pending),
                 Items = pending,
                 Context = context,

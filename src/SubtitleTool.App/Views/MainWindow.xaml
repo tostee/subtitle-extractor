@@ -84,6 +84,8 @@
                     <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                         <MenuItem Header="_Procesar solo este" Command="{Binding ProcessOneCommand}" CommandParameter="{Binding SelectedVideo}" />
                         <MenuItem Header="_Reintentar" Command="{Binding RetryCommand}" CommandParameter="{Binding SelectedVideo}" />
+                        <MenuItem Header="Versión c_ubana (vulgar, para reírse)…" Command="{Binding TranslateCubanCommand}" CommandParameter="{Binding SelectedVideo}"
+                                  ToolTip="Traduce en cubano callejero a &lt;video&gt;.es-cu.srt, aparte de la traducción normal (no la toca)." />
                         <Separator />
                         <MenuItem Header="Abrir _carpeta" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedVideo}" />
                         <MenuItem Header="Re_visar traducción…" Command="{Binding ReviewCommand}" CommandParameter="{Binding SelectedVideo}"

@@ -127,6 +127,19 @@ Opción «Ajustes → Revisar la traducción antes de guardar el .es.srt» (desa
 - Consola: `subtool review <archivo.en.srt>` resume el borrador; `--accept` lo guarda tal cual (validándolo) y `--discard`
   lo descarta. `scan` y `run` muestran los videos 📝 pendientes.
 
+## Versión cubana (para reírse)
+
+Clic derecho en una fila → **«Versión cubana (vulgar, para reírse)…»** (en consola, `--cubano`). Traduce los subtítulos
+al cubano de la calle, lo más chabacano posible: todos los personajes hablan como cubanos de barrio (asere, ¿qué bolá?,
+jamar, guagua… y muchas malas palabras). Es para uso personal, para ver la película en grupo.
+
+- Se guarda en **`<video>.es-cu.srt`** (`.es-cu.sdh.srt` si la pista es SDH), aparte de la traducción normal: no toca el
+  `.es.srt`, no crea la copia `.srt` sin idioma, no pasa por la revisión y no cuenta como «ya traducido». Si el video aún no
+  tiene el inglés extraído, lo extrae primero.
+- Reutiliza el glosario del video (nombres de personajes), pero siempre tutea.
+- Si ya existe, pregunta antes de rehacerla. En el reproductor, elige la pista «es-cu» o carga el archivo a mano.
+- Gasta límite de la suscripción (o dinero con la API) como una traducción normal.
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -219,6 +232,7 @@ La clave nunca se guarda en texto plano ni se escribe en los logs.
 | `--no-plain-copy` | | No crea la copia `Pelicula.srt` sin código de idioma. |
 | `--regenerate-glossary` | | Vuelve a generar el glosario aunque exista. |
 | `--review` | | No escribe el `.es.srt`: deja un borrador para revisarlo en la ventana (o aceptarlo con `subtool review`). |
+| `--cubano` | | Versión en cubano callejero y vulgar en `<video>.es-cu.srt` (ver «Versión cubana»); no toca el `.es.srt`. |
 
 ### Cómo funciona
 

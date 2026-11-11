@@ -35,6 +35,8 @@ public sealed record VideoOutcome
     public decimal CostUsd { get; init; }
     /// <summary>Advertencias y mensajes adicionales (para el log de la interfaz).</summary>
     public IReadOnlyList<string> Messages { get; init; } = [];
+    /// <summary>Estilo con el que se tradujo (la versión cubana no cambia el estado de la traducción normal).</summary>
+    public TranslationStyle Style { get; init; } = TranslationStyle.Neutral;
 }
 
 /// <summary>Fase actual de un video y, si se está traduciendo, su progreso.</summary>
@@ -75,7 +77,10 @@ public sealed class VideoProcessor
     public async Task<VideoOutcome> ProcessAsync(VideoStatus st, VideoProcessingOptions options, IProgress<VideoProgress>? progress = null,
         CancellationToken ct = default)
     {
-        var plan = VideoWorkflow.Plan(st, options.Translation.Force);
+        // La versión cubana va a su propio archivo: que ya exista el .es.srt o un borrador de revisión no la impide
+        // (si ya existe el .es-cu.srt lo decide el traductor, según Force).
+        var cuban = options.Translation.Style == TranslationStyle.Cuban;
+        var plan = VideoWorkflow.Plan(st, options.Translation.Force || cuban);
         switch (plan.Kind)
         {
             case VideoPlanKind.Process:
@@ -123,7 +128,7 @@ public sealed class VideoProcessor
         }
 
         var paths = TranslationPaths.FromEnglish(st.EnglishPath!);
-        var log = new FileTranslationLog(_logsRoot, Path.GetFileNameWithoutExtension(paths.EnglishPath));
+        var log = new FileTranslationLog(_logsRoot, Path.GetFileNameWithoutExtension(paths.EnglishPath) + (cuban ? ".cubano" : ""));
         var translator = new SubtitleTranslator(client, options.Translation, _jobsRoot);
         var translationProgress = progress is null
             ? null
@@ -173,7 +178,8 @@ public sealed class VideoProcessor
                 TranslationStatus.PendingReview => VideoOutcomeStatus.PendingReview,
                 _ => VideoOutcomeStatus.Failed,
             },
-            Detail = VideoWorkflow.ResultDetail(r, options.IsClaudeCode),
+            Detail = (cuban ? "versión cubana: " : "") + VideoWorkflow.ResultDetail(r, options.IsClaudeCode),
+            Style = options.Translation.Style,
             Extracted = extracted,
             Translation = r,
             LogPath = r.LogPath ?? log.Path,

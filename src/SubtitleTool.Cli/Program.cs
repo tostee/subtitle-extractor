@@ -105,6 +105,8 @@ namespace SubtitleTool.Cli
                   --no-plain-copy            no crea la copia .srt sin idioma
                   --regenerate-glossary      regenera <video>.glossary.json
                   --review                   no escribe el .es.srt: deja un borrador para revisarlo lado a lado
+                  --cubano                   versión en cubano callejero y vulgar (para reírse) en <video>.es-cu.srt;
+                                             no toca el .es.srt, no crea copia sin idioma ni borrador de revisión
                                              en la ventana (o aceptarlo con «subtool review»)
 
               subtool glossary <archivo.en.srt> [--backend B] [--model M] [--regenerate-glossary]

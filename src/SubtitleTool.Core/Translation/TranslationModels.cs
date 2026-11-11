@@ -102,8 +102,22 @@ public static class TranslationBackends
     public const string Api = "api";
 }
 
+/// <summary>Estilo de la traducción.</summary>
+public enum TranslationStyle
+{
+    /// <summary>Español latinoamericano neutro (la traducción normal: <c>X.es.srt</c>).</summary>
+    Neutral,
+    /// <summary>
+    /// Cubano callejero y vulgar, para reírse en grupo. Va a un archivo aparte (<c>X.es-cu.srt</c>), nunca crea la copia
+    /// sin idioma ni pasa por la revisión, y no cuenta como «ya traducido» para la traducción normal.
+    /// </summary>
+    Cuban,
+}
+
 public sealed record TranslationOptions
 {
+    /// <summary>Estilo de la traducción; <see cref="TranslationStyle.Cuban"/> escribe en <see cref="TranslationPaths.CubanPath"/>.</summary>
+    public TranslationStyle Style { get; init; } = TranslationStyle.Neutral;
     /// <summary><see cref="TranslationBackends.ClaudeCode"/> o <see cref="TranslationBackends.Api"/>. Se guarda en job.json.</summary>
     public string Backend { get; init; } = TranslationBackends.ClaudeCode;
     public string Model { get; init; } = ModelPricing.DefaultModel;
