@@ -52,6 +52,7 @@ public sealed class LibraryScanner
             };
             return Directory.EnumerateFiles(path, "*", options)
                 .Where(VideoFormats.IsSupported)
+                .Where(p => !Dubbing.DubbingRunner.IsGeneratedOutput(p))
                 .Select(Path.GetFullPath)
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                 .ToList();

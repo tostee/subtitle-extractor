@@ -12,6 +12,12 @@ public sealed record ProcessRunOptions
     public string? StandardInput { get; init; }
     public string? WorkingDirectory { get; init; }
     public IReadOnlyList<string> RemoveEnvironmentVariables { get; init; } = [];
+    /// <summary>Variables de entorno que se añaden o sustituyen.</summary>
+    public IReadOnlyDictionary<string, string> EnvironmentVariables { get; init; } = new Dictionary<string, string>();
+    /// <summary>Se llama con cada línea de stdout según llega (procesos largos con progreso). Desde un hilo de fondo.</summary>
+    public Action<string>? OnStandardOutputLine { get; init; }
+    /// <summary>Se llama con cada línea de stderr según llega. Desde un hilo de fondo.</summary>
+    public Action<string>? OnStandardErrorLine { get; init; }
 }
 
 public interface IProcessRunner
@@ -27,6 +33,32 @@ public interface IProcessRunner
 /// </summary>
 public sealed class ProcessRunner : IProcessRunner
 {
+    // Procesos en marcha: si la app se cierra con uno largo abierto (doblaje, instalación), se termina con ella
+    // en vez de quedarse huérfano ocupando la GPU o descargando.
+    private static readonly HashSet<Process> Running = [];
+
+    static ProcessRunner()
+    {
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            Process[] alive;
+            lock (Running)
+                alive = [.. Running];
+            foreach (var p in alive)
+            {
+                try
+                {
+                    if (!p.HasExited)
+                        p.Kill(entireProcessTree: true);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                    // Ya terminó o no se puede: se sigue cerrando.
+                }
+            }
+        };
+    }
+
     public Task<ProcessResult> RunAsync(string fileName, IEnumerable<string> arguments, CancellationToken cancellationToken = default) =>
         RunAsync(fileName, arguments, new ProcessRunOptions(), cancellationToken);
 
@@ -49,15 +81,32 @@ public sealed class ProcessRunner : IProcessRunner
             psi.WorkingDirectory = options.WorkingDirectory;
         foreach (var name in options.RemoveEnvironmentVariables)
             psi.Environment.Remove(name);
+        foreach (var (name, value) in options.EnvironmentVariables)
+            psi.Environment[name] = value;
         foreach (var arg in arguments)
             psi.ArgumentList.Add(arg);
 
         using var process = new Process { StartInfo = psi };
         if (!process.Start())
             throw new InvalidOperationException($"No se pudo iniciar el proceso '{fileName}'.");
+        lock (Running)
+            Running.Add(process);
+        try
+        {
+            return await WaitAsync(process, options, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (Running)
+                Running.Remove(process);
+        }
+    }
 
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
-        var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
+    private static async Task<ProcessResult> WaitAsync(Process process, ProcessRunOptions options, CancellationToken cancellationToken)
+    {
+
+        var stdoutTask = ReadAllAsync(process.StandardOutput, options.OnStandardOutputLine);
+        var stderrTask = ReadAllAsync(process.StandardError, options.OnStandardErrorLine);
         var stdinTask = options.StandardInput is null ? Task.CompletedTask : WriteInputAsync(process, options.StandardInput);
 
         try
@@ -96,6 +145,27 @@ public sealed class ProcessRunner : IProcessRunner
         var stdout = await stdoutTask.ConfigureAwait(false);
         var stderr = await stderrTask.ConfigureAwait(false);
         return new ProcessResult(process.ExitCode, stdout, stderr);
+    }
+
+    /// <summary>Sin callback: todo de una vez. Con callback: línea a línea (se avisa de cada una) y se devuelve todo igual.</summary>
+    private static async Task<string> ReadAllAsync(StreamReader reader, Action<string>? onLine)
+    {
+        if (onLine is null)
+            return await reader.ReadToEndAsync(CancellationToken.None).ConfigureAwait(false);
+        var sb = new StringBuilder();
+        while (await reader.ReadLineAsync(CancellationToken.None).ConfigureAwait(false) is { } line)
+        {
+            sb.AppendLine(line);
+            try
+            {
+                onLine(line);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Un error al mostrar el progreso no debe cortar la lectura (el proceso se quedaría bloqueado).
+            }
+        }
+        return sb.ToString();
     }
 
     private static async Task WriteInputAsync(Process process, string input)

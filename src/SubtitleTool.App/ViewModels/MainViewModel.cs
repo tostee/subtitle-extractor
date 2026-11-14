@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IActivityLog _activityLog;
     private readonly IUpdateService _updates;
     private readonly IReviewService _reviews;
+    private readonly IDubbingService _dubbing;
     private bool _checkingUpdates;
 
     private AppSettings _settings;
@@ -46,8 +47,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     public MainViewModel(ISettingsStore settingsStore, ILibraryService library, IVideoProcessingService processing,
         IGlossaryService glossary, IDoctorService doctor, IApiKeyService apiKeys, IDialogService dialogs,
-        IActivityLog? activityLog = null, IUpdateService? updates = null, IReviewService? reviews = null)
+        IActivityLog? activityLog = null, IUpdateService? updates = null, IReviewService? reviews = null, IDubbingService? dubbing = null)
     {
+        _dubbing = dubbing ?? new DubbingService();
         _reviews = reviews ?? new ReviewServiceAdapter();
         _activityLog = activityLog ?? NullActivityLog.Instance;
         _updates = updates ?? NullUpdateService.Instance;
@@ -122,6 +124,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         try
         {
+            // La carpeta de motores la cambia la ventana de doblaje (que guarda por su cuenta): no se pisa.
+            _settings.DubbingEnginesDirectory = _settingsStore.Load().DubbingEnginesDirectory;
             _settingsStore.Save(_settings);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -752,6 +756,16 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (row is not null)
             _dialogs.OpenFolder(row.VideoPath);
+    }
+
+    /// <summary>Ventana de doblaje con voces (del video de la fila, o vacía para elegir uno).</summary>
+    [RelayCommand]
+    private void OpenDubbing(VideoItemViewModel? row)
+    {
+        // Los ajustes pueden haber cambiado (modo, modelo): la ventana los lee al abrirse.
+        SaveSettings();
+        var vm = new DubbingViewModel(_dubbing, _dialogs, _settingsStore, _activityLog, row?.VideoPath);
+        _dialogs.ShowDubbing(vm);
     }
 
     [RelayCommand]

@@ -1,0 +1,241 @@
+<Window x:Class="SubtitleTool.App.Views.DubbingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SubtitleTool.App.ViewModels"
+        xmlns:views="clr-namespace:SubtitleTool.App.Views"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:DubbingViewModel}"
+        Title="{Binding Title}" Width="1150" Height="760" MinWidth="860" MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        Style="{StaticResource AppWindow}" Closing="OnClosing">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Video y subtítulos -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Label Grid.Row="0" Grid.Column="0" Content="Vi_deo" Target="{Binding ElementName=VideoBox}" Style="{StaticResource MutedLabel}" Margin="0,0,8,0" />
+            <TextBox x:Name="VideoBox" Grid.Row="0" Grid.Column="1" Text="{Binding VideoPath, Mode=OneWay}" IsReadOnly="True"
+                     Background="{DynamicResource ReadOnlyBackground}" VerticalAlignment="Center"
+                     AutomationProperties.Name="Video a doblar" />
+            <Button Grid.Row="0" Grid.Column="2" Content="_Elegir video…" Command="{Binding ChooseVideoCommand}" Margin="8,0,0,0" />
+
+            <Label Grid.Row="1" Grid.Column="0" Content="_Subtítulos" Target="{Binding ElementName=SubtitleCombo}" Style="{StaticResource MutedLabel}"
+                   Margin="0,8,8,0" />
+            <ComboBox x:Name="SubtitleCombo" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" ItemsSource="{Binding SubtitleOptions}"
+                      DisplayMemberPath="Label" SelectedItem="{Binding SelectedSubtitle}" IsEnabled="{Binding IsIdle}"
+                      AutomationProperties.Name="Subtítulos que se van a leer en voz alta" />
+
+            <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding SummaryText}" Style="{StaticResource Muted}"
+                       TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite" />
+        </Grid>
+
+        <TabControl Grid.Row="1">
+            <!-- 1. Personajes -->
+            <TabItem Header="1. _Personajes">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Detectar personajes y _emociones (Claude)" Command="{Binding AnnotateCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    ToolTip="Claude lee los subtítulos y decide quién dice cada línea, su sexo y con qué emoción. Usa el modo y el modelo de la ventana principal." />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                   Text="Cada personaje tiene una voz cubana base (Manuel o Belkys), su velocidad y su tono. Con una muestra de voz (10–25 s, una persona, sin música; p. ej. una nota de voz de WhatsApp) el personaje sonará como esa persona — solo con su permiso." />
+                    </StackPanel>
+                    <DataGrid x:Name="CharactersGrid" ItemsSource="{Binding Characters}" AutoGenerateColumns="False" CanUserAddRows="False"
+                              IsEnabled="{Binding IsIdle}"
+                              CanUserDeleteRows="False" CanUserReorderColumns="False" AutomationProperties.Name="Personajes">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Personaje" Binding="{Binding Name}" IsReadOnly="True" Width="2*" MinWidth="140" />
+                            <DataGridTextColumn Header="Líneas" Binding="{Binding LineCount}" IsReadOnly="True" Width="70" />
+                            <DataGridComboBoxColumn Header="Sexo" Width="110"
+                                                    ItemsSource="{x:Static vm:DubbingViewModel.GenderChoices}" DisplayMemberPath="Label"
+                                                    SelectedValuePath="Value" SelectedValueBinding="{Binding Gender, UpdateSourceTrigger=PropertyChanged}" />
+                            <DataGridComboBoxColumn Header="Voz base" Width="150"
+                                                    ItemsSource="{x:Static vm:DubbingViewModel.VoiceChoices}" DisplayMemberPath="Label"
+                                                    SelectedValuePath="Value" SelectedValueBinding="{Binding EdgeVoice, UpdateSourceTrigger=PropertyChanged}" />
+                            <DataGridTextColumn Header="Velocidad %" Binding="{Binding Rate, UpdateSourceTrigger=LostFocus}" Width="95" />
+                            <DataGridTextColumn Header="Tono Hz" Binding="{Binding Pitch, UpdateSourceTrigger=LostFocus}" Width="80" />
+                            <DataGridTemplateColumn Header="Muestra de voz (voz propia)" Width="3*" MinWidth="260">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Content="Quitar" Command="{Binding ClearSampleCommand}" Margin="4,0,0,0" Padding="8,1"
+                                                    Visibility="{Binding HasSample, Converter={StaticResource BoolToVis}}"
+                                                    AutomationProperties.Name="{Binding Name, StringFormat='Quitar la muestra de voz de {0}'}" />
+                                            <Button DockPanel.Dock="Right" Content="Elegir…" Command="{Binding ChooseSampleCommand}" Margin="4,0,0,0" Padding="8,1"
+                                                    AutomationProperties.Name="{Binding Name, StringFormat='Elegir muestra de voz para {0}'}" />
+                                            <TextBlock Text="{Binding SampleText}" Style="{StaticResource CellText}" ToolTip="{Binding SamplePath}" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- 2. Líneas -->
+            <TabItem Header="2. _Líneas">
+                <DockPanel Margin="8">
+                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Text="Corrige aquí quién dice cada línea y con qué emoción. Escribir un nombre nuevo crea el personaje. La emoción solo se oye con el motor «Emociones (IndexTTS-2.5)»." />
+                    <DataGrid ItemsSource="{Binding Lines}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              IsEnabled="{Binding IsIdle}"
+                              CanUserReorderColumns="False" EnableRowVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                              AutomationProperties.Name="Líneas del doblaje">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Id}" IsReadOnly="True" Width="55" />
+                            <DataGridTextColumn Header="Inicio" Binding="{Binding TimeText}" IsReadOnly="True" Width="80" />
+                            <DataGridTemplateColumn Header="Personaje" Width="170" SortMemberPath="Speaker">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Speaker}" Style="{StaticResource CellText}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <ComboBox IsEditable="True"
+                                                  ItemsSource="{Binding DataContext.CharacterNames, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  Text="{Binding Speaker, UpdateSourceTrigger=LostFocus}"
+                                                  AutomationProperties.Name="Personaje de la línea" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridComboBoxColumn Header="Emoción" Width="120"
+                                                    ItemsSource="{x:Static vm:DubbingViewModel.EmotionChoices}" DisplayMemberPath="Label"
+                                                    SelectedValuePath="Value" SelectedValueBinding="{Binding Emotion, UpdateSourceTrigger=PropertyChanged}" />
+                            <DataGridTextColumn Header="Intensidad %" Binding="{Binding IntensityPercent, UpdateSourceTrigger=LostFocus}" Width="95" />
+                            <DataGridTextColumn Header="Texto" Binding="{Binding Text}" IsReadOnly="True" Width="*" MinWidth="250">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}" />
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- 3. Motores -->
+            <TabItem Header="3. _Motores">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                                   Text="Los motores de voz son programas aparte que se descargan una vez (gratis). Solo el primero es imprescindible; los otros dos necesitan una tarjeta gráfica NVIDIA." />
+                        <DockPanel Margin="0,8,0,0">
+                            <Button DockPanel.Dock="Right" Content="Cambiar _carpeta…" Command="{Binding ChangeEnginesFolderCommand}" Margin="8,0,0,0"
+                                    ToolTip="Elige un disco con espacio (hasta ~20 GB). Los motores ya instalados en la carpeta anterior no se mueven." />
+                            <TextBlock VerticalAlignment="Center" Style="{StaticResource TrimmedText}">
+                                <Run Text="Carpeta: " Foreground="{DynamicResource MutedText}" /><Run Text="{Binding EnginesFolder, Mode=OneWay}" />
+                            </TextBlock>
+                        </DockPanel>
+                        <TextBlock Text="{Binding GpuText}" Style="{StaticResource Muted}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Engines}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8"
+                                        Background="{DynamicResource Surface}">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="{Binding ButtonText}" Command="{Binding InstallCommand}" VerticalAlignment="Center"
+                                                IsEnabled="{Binding DataContext.IsIdle, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                AutomationProperties.Name="{Binding Name, StringFormat='Instalar {0}'}" Margin="12,0,0,0" />
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Size, StringFormat='  ·  {0}'}" Style="{StaticResource Muted}" />
+                                                <Border Margin="16,0,0,0">
+                                                    <views:StatusIcon Kind="{Binding StatusKind}" />
+                                                </Border>
+                                                <TextBlock Text="{Binding StatusText}" />
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Description}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </TabItem>
+
+            <!-- Registro -->
+            <TabItem Header="_Registro">
+                <ListBox x:Name="LogList" ItemsSource="{Binding LogLines}" Margin="8" FontFamily="Consolas" FontSize="12"
+                         BorderBrush="{DynamicResource Border}" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         VirtualizingPanel.IsVirtualizing="True" AutomationProperties.Name="Registro del doblaje" />
+            </TabItem>
+        </TabControl>
+
+        <!-- Opciones -->
+        <Border Grid.Row="2" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,12,0,0">
+            <WrapPanel Orientation="Horizontal">
+                <StackPanel Margin="0,0,24,8">
+                    <TextBlock Text="Voz" Style="{StaticResource SectionHeader}" />
+                    <RadioButton Content="Rápida (voces cubanas, sin emociones)" IsChecked="{Binding UseEmotions, Converter={StaticResource InverseBool}}"
+                                 IsEnabled="{Binding IsIdle}" Margin="0,4,0,0" GroupName="VoiceEngine" />
+                    <RadioButton Content="Con emociones (IndexTTS-2.5, más lenta)" IsChecked="{Binding UseEmotions}" IsEnabled="{Binding IsIdle}"
+                                 ToolTip="Con emociones, el tono y la velocidad de cada personaje no se aplican: los personajes con la misma voz base y sin muestra de voz suenan igual. Dales una muestra de voz para distinguirlos."
+                                 Margin="0,4,0,0" GroupName="VoiceEngine" />
+                    <CheckBox Content="Usar las muestras de _voz de los personajes (Seed-VC)" IsChecked="{Binding UseOwnVoices}" IsEnabled="{Binding IsIdle}"
+                              Margin="0,8,0,0" />
+                </StackPanel>
+                <StackPanel Margin="0,0,24,8">
+                    <TextBlock Text="Qué doblar" Style="{StaticResource SectionHeader}" />
+                    <CheckBox x:Name="FragmentCheck" Content="Solo un _fragmento de prueba" IsChecked="{Binding FragmentOnly}" IsEnabled="{Binding IsIdle}"
+                              Margin="0,4,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="20,4,0,0" IsEnabled="{Binding IsChecked, ElementName=FragmentCheck}">
+                        <Label Content="Desde" Target="{Binding ElementName=FromBox}" Style="{StaticResource MutedLabel}" Margin="0,0,4,0" />
+                        <TextBox x:Name="FromBox" Text="{Binding FragmentStart, UpdateSourceTrigger=PropertyChanged}" Width="80" VerticalAlignment="Center"
+                                 AutomationProperties.Name="Inicio del fragmento (hh:mm:ss)" />
+                        <Label Content="hasta" Target="{Binding ElementName=ToBox}" Style="{StaticResource MutedLabel}" Margin="8,0,4,0" />
+                        <TextBox x:Name="ToBox" Text="{Binding FragmentEnd, UpdateSourceTrigger=PropertyChanged}" Width="80" VerticalAlignment="Center"
+                                 AutomationProperties.Name="Fin del fragmento (hh:mm:ss)" />
+                    </StackPanel>
+                    <TextBlock Text="Sin marcar: la película entera (se crea «Película.doblaje-cu.mkv» con todas las pistas originales)."
+                               Style="{StaticResource Muted}" TextWrapping="Wrap" MaxWidth="360" Margin="0,4,0,0" />
+                </StackPanel>
+                <StackPanel Margin="0,0,24,8" IsEnabled="{Binding UseEmotions}">
+                    <TextBlock Text="Fuerza de las emociones" Style="{StaticResource SectionHeader}" />
+                    <Slider Minimum="0.3" Maximum="1.5" Value="{Binding EmotionStrength}" Width="180" Margin="0,8,0,0" TickFrequency="0.1"
+                            IsSnapToTickEnabled="True" AutomationProperties.Name="Fuerza de las emociones" />
+                    <TextBlock Text="{Binding EmotionStrength, StringFormat='×{0:0.0}'}" Style="{StaticResource Muted}" />
+                </StackPanel>
+            </WrapPanel>
+        </Border>
+
+        <!-- Acciones y progreso -->
+        <DockPanel Grid.Row="3" Margin="0,4,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Abrir video" Command="{Binding OpenOutputCommand}" Margin="0,0,8,0"
+                        Visibility="{Binding HasOutput, Converter={StaticResource BoolToVis}}" />
+                <Button Content="Abrir carpeta" Command="{Binding OpenOutputFolderCommand}" Margin="0,0,8,0"
+                        Visibility="{Binding HasOutput, Converter={StaticResource BoolToVis}}" />
+                <Button Content="Cancelar" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
+                <Button Content="_Generar doblaje" Command="{Binding GenerateCommand}" Style="{StaticResource PrimaryButton}" />
+            </StackPanel>
+            <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                <ProgressBar Height="10" Maximum="100" Value="{Binding ProgressValue, Mode=OneWay}" IsIndeterminate="{Binding IsProgressIndeterminate}"
+                             AutomationProperties.Name="Progreso del doblaje" />
+                <TextBlock Text="{Binding ProgressText}" Style="{StaticResource TrimmedText}" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

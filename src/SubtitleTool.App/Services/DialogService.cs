@@ -106,4 +106,50 @@ public sealed class DialogService : IDialogService
 
     public void ShowSummary(IReadOnlyList<SummaryRow> rows) =>
         new SummaryWindow { Owner = ActiveOwner, DataContext = new SummaryViewModel(rows) }.ShowDialog();
+
+    private DubbingWindow? _dubbingWindow;
+
+    public void ShowDubbing(DubbingViewModel viewModel)
+    {
+        if (_dubbingWindow is { } open)
+        {
+            // Ya abierta: si se pidió otro video y no está ocupada, se cambia; siempre se trae al frente.
+            if (open.DataContext is DubbingViewModel current && viewModel.VideoPath is { } video
+                && !string.Equals(current.VideoPath, video, StringComparison.OrdinalIgnoreCase))
+            {
+                if (current.IsIdle)
+                    current.SetVideo(video);
+                else
+                    MessageBox.Show(open, "La ventana de doblaje está ocupada con otro video. Espera a que termine o cancélalo.",
+                        "Doblaje", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            if (open.WindowState == WindowState.Minimized)
+                open.WindowState = WindowState.Normal;
+            open.Activate();
+            return;
+        }
+        _dubbingWindow = new DubbingWindow(viewModel) { Owner = Owner };
+        _dubbingWindow.Closed += (_, _) => _dubbingWindow = null;
+        _dubbingWindow.Show();
+    }
+
+    public string? PickAudioFile(string title)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = title,
+            Filter = "Audio (*.ogg;*.opus;*.m4a;*.mp3;*.wav;*.aac;*.flac)|*.ogg;*.opus;*.m4a;*.mp3;*.wav;*.aac;*.flac|Todos los archivos (*.*)|*.*",
+        };
+        return dlg.ShowDialog(ActiveOwner) == true ? dlg.FileName : null;
+    }
+
+    public string? PickVideoFile()
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Elige el video a doblar",
+            Filter = SubtitleTool.Core.Media.VideoFormats.DialogFilter,
+        };
+        return dlg.ShowDialog(ActiveOwner) == true ? dlg.FileName : null;
+    }
 }

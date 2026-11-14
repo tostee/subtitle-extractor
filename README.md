@@ -140,6 +140,30 @@ jamar, guagua… y muchas malas palabras). Es para uso personal, para ver la pel
 - Si ya existe, pregunta antes de rehacerla. En el reproductor, elige la pista «es-cu» o carga el archivo a mano.
 - Gasta límite de la suscripción (o dinero con la API) como una traducción normal.
 
+## Doblaje con voces (ventana aparte)
+
+Botón **«Doblaje…»** de la barra (o clic derecho en una fila → **«Doblar con voces…»**). A partir de los subtítulos en
+español del video (mejor la versión cubana, `.es-cu.srt`) crea un video con una pista de audio doblada con voces cubanas.
+
+1. **Personajes** — «Detectar personajes y emociones (Claude)» etiqueta cada línea con quién la dice, su sexo y su emoción
+   (usa el modo y el modelo de la ventana principal; gasta límite o dinero como una traducción corta). A cada personaje se
+   le da una voz cubana base (Manuel o Belkys), velocidad y tono, y opcionalmente una **muestra de voz** (10–25 s, una
+   persona, sin música; p. ej. una nota de voz de WhatsApp) para que suene como esa persona — solo con su permiso.
+2. **Líneas** — se corrige a mano el personaje y la emoción de cada línea.
+3. **Motores** — se instalan desde la propia ventana (gratis, una vez) en `%LOCALAPPDATA%\SubtitleTool\voces` o en la
+   carpeta que elijas:
+   - *Voces cubanas (edge-tts)* — imprescindible, ≈ 100 MB, necesita internet al generar.
+   - *Voces propias (Seed-VC)* — ≈ 7 GB, GPU NVIDIA.
+   - *Emociones (IndexTTS-2.5)* — ≈ 12 GB, GPU NVIDIA, unos 10 s por línea.
+
+Al generar se elige la voz (rápida o con emociones), si se usan las muestras de voz y si se dobla un **fragmento de
+prueba** (`<video>.doblaje-cu.prueba-HHMMSS-HHMMSS.mkv`, recodificado a 720p) o la película entera
+(`<video>.doblaje-cu.mkv`: el video sin recodificar, la pista doblada por defecto, todas las pistas originales y los
+subtítulos). El fondo sale de la pista original: en 5.1/7.1 se quita el canal central (donde van los diálogos); en estéreo
+se baja el volumen mientras habla la voz nueva. Los audios generados se guardan en `%LOCALAPPDATA%\SubtitleTool\doblaje`:
+si se cancela, al repetir se reutilizan. El proyecto (personajes, emociones, voces) se guarda junto al SRT en
+`<video>.es-cu.doblaje.json`. Necesita FFmpeg.
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -284,10 +308,13 @@ subtool run "D:\Peliculas"
   `Workflow/` reúne lo que comparten la CLI y la interfaz: decisión por video (`VideoWorkflow.Plan`), formato de coste y
   detalle, creación del cliente de traducción (`TranslationClientFactory`, incluido el traductor falso), comprobaciones de
   `doctor` (`DoctorService`) y el procesamiento completo de un video (`VideoProcessor`: extraer si falta → traducir).
+  `Dubbing/` es el doblaje: proyecto (`DubbingProject`), etiquetado de personajes y emociones con Claude
+  (`DubbingAnnotator`), instalación de los motores de voz con uv (`DubbingEngines`) y lanzamiento del motor (`DubbingRunner`).
 - `src/SubtitleTool.Cli` — aplicación de consola `subtool`.
 - `installer/` — `Subtitulos.iss` (Inno Setup) y `build-installer.ps1`.
 - `src/SubtitleTool.App` — interfaz gráfica WPF `Subtitulos.exe` (MVVM con CommunityToolkit.Mvvm): `ViewModels/`,
-  `Views/`, `Services/` (adaptadores a Core y diálogos) y `Themes/Styles.xaml`.
+  `Views/`, `Services/` (adaptadores a Core y diálogos) y `Themes/Styles.xaml`. `Dubbing/*.py` es el motor de doblaje en Python
+  (`motor_doblaje.py` y los lotes de Seed-VC e IndexTTS) que se copia junto al ejecutable.
 - `tests/SubtitleTool.App.Tests` — pruebas de las ViewModels con servicios falsos (sin abrir ventanas ni llamar a Claude).
 - `tests/SubtitleTool.Core.Tests` — pruebas xUnit (con fixtures JSON de `mkvmerge -J` y de `ffprobe` de un `.mp4` real, un cliente de traducción falso y salidas grabadas de
   `claude -p`; sin red ni Claude Code real).

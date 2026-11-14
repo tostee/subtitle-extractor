@@ -3,6 +3,18 @@
 Formato: una sección `## [X.Y.Z] - AAAA-MM-DD` por versión. Al publicar la etiqueta `vX.Y.Z`, la sección correspondiente
 se usa como notas de la Release (y es lo que la app muestra en «Novedades»).
 
+## [1.4.0] - 2026-11-14
+
+Doblaje con voces cubanas, en una ventana aparte.
+
+- Nuevo: botón «Doblaje…» (o clic derecho → «Doblar con voces…»). Convierte los subtítulos en español (mejor la versión
+  cubana) en una pista de audio doblada dentro de un `.mkv` nuevo: `<video>.doblaje-cu.mkv`, con todas las pistas originales.
+- Claude detecta quién dice cada línea, su sexo y su emoción; se puede corregir a mano. Cada personaje tiene su voz
+  cubana (Manuel o Belkys), velocidad y tono.
+- Opcional: voces propias a partir de una nota de voz de 10–25 s (Seed-VC) y voces con emociones (IndexTTS-2.5). Los
+  motores se instalan gratis desde la propia ventana; los dos opcionales necesitan una tarjeta gráfica NVIDIA.
+- Fragmento de prueba (p. ej. 2 minutos) antes de doblar la película entera; si se cancela, lo ya generado se reutiliza.
+
 ## [1.3.0] - 2026-11-10
 
 Versión cubana de los subtítulos, para reírse en grupo.

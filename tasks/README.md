@@ -29,3 +29,6 @@ Dentro de cada carpeta hay un `README.md` con esta estructura:
 | [Task 1](Task%201/README.md) | Crear el registro de tareas y bugs | 2026-11-10 | Completada |
 | [Task 2](Task%202/README.md) | Versión cubana (vulgar) de los subtítulos | 2026-11-10 | Completada (publicada en 1.3.0) |
 | [Task 3](Task%203/README.md) | Publicar la versión 1.3.0 | 2026-11-10 | Completada |
+| [Task 4](Task%204/README.md) | Investigar doblaje con voces (cubano) | 2026-11-13 | Completada (investigación + prueba) |
+| [Task 5](Task%205/README.md) | Integrar el doblaje con voces en la app (vista nueva) | 2026-11-14 | Completada (sin publicar) |
+| [Task 6](Task%206/README.md) | Publicar la versión 1.4.0 (doblaje con voces) | 2026-11-14 | Commit hecho (falta etiqueta) |

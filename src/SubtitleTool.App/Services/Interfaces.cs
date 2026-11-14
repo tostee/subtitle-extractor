@@ -49,6 +49,37 @@ public interface IReviewService
     void Discard(string englishPath);
 }
 
+/// <summary>Doblaje con voces (Core: <see cref="SubtitleTool.Core.Dubbing.DubbingRunner"/> y compañía).</summary>
+public interface IDubbingService
+{
+    /// <summary>Carpeta de los motores según los ajustes (o la predeterminada).</summary>
+    string EnginesRoot(AppSettings settings);
+
+    bool IsInstalled(SubtitleTool.Core.Dubbing.DubbingEngine engine, AppSettings settings);
+
+    /// <summary>Nombre de la GPU NVIDIA, o null si no hay.</summary>
+    Task<string?> DetectGpuAsync(CancellationToken ct = default);
+
+    /// <exception cref="SubtitleTool.Core.Dubbing.DubbingInstallException">Falló la instalación.</exception>
+    Task InstallAsync(SubtitleTool.Core.Dubbing.DubbingEngine engine, AppSettings settings, IProgress<string> log, CancellationToken ct);
+
+    /// <summary>Subtítulos en español junto al video (cubano primero), con su etiqueta.</summary>
+    IReadOnlyList<(string Path, string Label)> FindSubtitles(string videoPath);
+
+    /// <exception cref="SubtitleTool.Core.Srt.SrtParseException">El SRT no es válido.</exception>
+    SubtitleTool.Core.Dubbing.DubbingProject LoadProject(string subtitlePath);
+
+    void SaveProject(SubtitleTool.Core.Dubbing.DubbingProject project);
+
+    /// <summary>Claude etiqueta personaje y emoción de cada línea (backend y modelo de los ajustes).</summary>
+    Task<TokenUsage> AnnotateAsync(SubtitleTool.Core.Dubbing.DubbingProject project, AppSettings settings,
+        IProgress<SubtitleTool.Core.Dubbing.AnnotationProgress> progress, CancellationToken ct);
+
+    /// <exception cref="SubtitleTool.Core.Dubbing.DubbingException">Falta un motor o falló el doblaje.</exception>
+    Task<SubtitleTool.Core.Dubbing.DubbingResult> RunAsync(SubtitleTool.Core.Dubbing.DubbingRequest request, AppSettings settings,
+        IProgress<SubtitleTool.Core.Dubbing.DubbingProgress> progress, CancellationToken ct);
+}
+
 /// <summary>Actualizaciones desde GitHub Releases.</summary>
 public interface IUpdateService
 {
@@ -131,4 +162,13 @@ public interface IDialogService
     void ShowGlossaryEditor(GlossaryEditorViewModel viewModel);
     void ShowReview(ReviewViewModel viewModel);
     void ShowSummary(IReadOnlyList<SummaryRow> rows);
+
+    /// <summary>Ventana de doblaje (no modal: puede tardar horas). Si ya hay una abierta, se trae al frente.</summary>
+    void ShowDubbing(DubbingViewModel viewModel);
+
+    /// <summary>Elegir un archivo de audio (muestra de voz); null si se cancela.</summary>
+    string? PickAudioFile(string title);
+
+    /// <summary>Elegir un video; null si se cancela.</summary>
+    string? PickVideoFile();
 }

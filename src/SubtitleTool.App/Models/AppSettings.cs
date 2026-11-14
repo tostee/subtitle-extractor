@@ -21,6 +21,9 @@ public sealed class AppSettings
     /// <summary>Carpeta de FFmpeg (ffmpeg.exe y ffprobe.exe, solo para .mp4); vacía = autodetección.</summary>
     [JsonPropertyName("ffmpegDirectory")] public string? FfmpegDirectory { get; set; }
 
+    /// <summary>Carpeta de los motores de voz del doblaje (varios GB); vacía = %LOCALAPPDATA%\SubtitleTool\voces.</summary>
+    [JsonPropertyName("dubbingEnginesDirectory")] public string? DubbingEnginesDirectory { get; set; }
+
     /// <summary>Buscar versiones nuevas en GitHub al abrir la app.</summary>
     [JsonPropertyName("checkForUpdates")] public bool CheckForUpdates { get; set; } = true;
 
@@ -46,6 +49,7 @@ public sealed class AppSettings
         if (TimeoutMinutes < 1) TimeoutMinutes = 10;
         if (string.IsNullOrWhiteSpace(MkvToolNixDirectory)) MkvToolNixDirectory = null;
         if (string.IsNullOrWhiteSpace(FfmpegDirectory)) FfmpegDirectory = null;
+        if (string.IsNullOrWhiteSpace(DubbingEnginesDirectory)) DubbingEnginesDirectory = null;
         return this;
     }
 

@@ -33,7 +33,9 @@
                         <Button Content="_Procesar todo" Command="{Binding ProcessAllCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
                         <Button Content="Cancelar proceso" Command="{Binding CancelCommand}" Margin="0,0,16,0"
                                 ToolTip="Detiene la cola; el avance se guarda y se puede reanudar." />
-                        <Button Content="_Vaciar lista" Command="{Binding ClearListCommand}" ToolTip="Quita todos los videos de la lista (no borra archivos)." />
+                        <Button Content="_Vaciar lista" Command="{Binding ClearListCommand}" ToolTip="Quita todos los videos de la lista (no borra archivos)." Margin="0,0,16,0" />
+                        <Button Content="_Doblaje…" Command="{Binding OpenDubbingCommand}" CommandParameter="{Binding SelectedVideo}"
+                                ToolTip="Doblar con voces cubanas el video seleccionado a partir de sus subtítulos (ventana aparte)." />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,4">
                         <Label Content="_Modo" Target="{Binding ElementName=BackendCombo}" Style="{StaticResource MutedLabel}" Margin="0,0,8,0" />
@@ -86,6 +88,8 @@
                         <MenuItem Header="_Reintentar" Command="{Binding RetryCommand}" CommandParameter="{Binding SelectedVideo}" />
                         <MenuItem Header="Versión c_ubana (vulgar, para reírse)…" Command="{Binding TranslateCubanCommand}" CommandParameter="{Binding SelectedVideo}"
                                   ToolTip="Traduce en cubano callejero a &lt;video&gt;.es-cu.srt, aparte de la traducción normal (no la toca)." />
+                        <MenuItem Header="_Doblar con voces…" Command="{Binding OpenDubbingCommand}" CommandParameter="{Binding SelectedVideo}"
+                                  ToolTip="Genera una pista de audio doblada (voces cubanas, emociones, voces propias) a partir de los subtítulos en español." />
                         <Separator />
                         <MenuItem Header="Abrir _carpeta" Command="{Binding OpenFolderCommand}" CommandParameter="{Binding SelectedVideo}" />
                         <MenuItem Header="Re_visar traducción…" Command="{Binding ReviewCommand}" CommandParameter="{Binding SelectedVideo}"

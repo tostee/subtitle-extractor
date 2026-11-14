@@ -1,6 +1,7 @@
 using SubtitleTool.App.Models;
 using SubtitleTool.App.Services;
 using SubtitleTool.App.ViewModels;
+using SubtitleTool.Core.Dubbing;
 using SubtitleTool.Core.Library;
 using SubtitleTool.Core.Media;
 using SubtitleTool.Core.Mkv;
@@ -226,6 +227,77 @@ public sealed class FakeDialogs : IDialogService
         OnReview?.Invoke(viewModel).GetAwaiter().GetResult();
     }
     public void ShowSummary(IReadOnlyList<SummaryRow> rows) => Summaries.Add(rows);
+    public DubbingViewModel? DubbingShown { get; private set; }
+    public void ShowDubbing(DubbingViewModel viewModel) => DubbingShown = viewModel;
+    public string? AudioToPick { get; set; }
+    public string? PickAudioFile(string title) => AudioToPick;
+    public string? VideoToPick { get; set; }
+    public string? PickVideoFile() => VideoToPick;
+}
+
+/// <summary>Doblaje falso: proyectos en memoria, motores marcados a mano y etiquetado/generación simulados.</summary>
+public sealed class FakeDubbing : IDubbingService
+{
+    public HashSet<DubbingEngine> Installed { get; } = [];
+    public Dictionary<string, IReadOnlyList<(string Path, string Label)>> Subtitles { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, DubbingProject> Projects { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<DubbingProject> Saved { get; } = [];
+    public List<DubbingEngine> InstallCalls { get; } = [];
+    public List<DubbingRequest> Requests { get; } = [];
+    public List<AppSettings> SettingsSeen { get; } = [];
+    public Exception? RunError { get; set; }
+    public TaskCompletionSource? RunGate { get; set; }
+    /// <summary>Etiquetas que «devuelve Claude»: id → (personaje, sexo, emoción).</summary>
+    public Dictionary<int, (string Speaker, string Gender, string Emotion)> Annotations { get; } = [];
+
+    public string EnginesRoot(AppSettings settings) => settings.DubbingEnginesDirectory ?? @"C:\voces";
+    public bool IsInstalled(DubbingEngine engine, AppSettings settings) => Installed.Contains(engine);
+    public Task<string?> DetectGpuAsync(CancellationToken ct = default) => Task.FromResult<string?>("GPU de prueba");
+
+    public Task InstallAsync(DubbingEngine engine, AppSettings settings, IProgress<string> log, CancellationToken ct)
+    {
+        InstallCalls.Add(engine);
+        log.Report("instalando (prueba)");
+        Installed.Add(engine);
+        return Task.CompletedTask;
+    }
+
+    public IReadOnlyList<(string Path, string Label)> FindSubtitles(string videoPath) =>
+        Subtitles.TryGetValue(videoPath, out var s) ? s : [];
+
+    public DubbingProject LoadProject(string subtitlePath) =>
+        Projects.TryGetValue(subtitlePath, out var p) ? p : throw new FileNotFoundException(subtitlePath);
+
+    public void SaveProject(DubbingProject project) => Saved.Add(project);
+
+    public Task<TokenUsage> AnnotateAsync(DubbingProject project, AppSettings settings, IProgress<AnnotationProgress> progress, CancellationToken ct)
+    {
+        SettingsSeen.Add(settings);
+        var genders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in project.Lines)
+            if (Annotations.TryGetValue(line.Id, out var a))
+            {
+                line.Speaker = a.Speaker;
+                line.Emotion = a.Emotion;
+                genders[a.Speaker] = a.Gender;
+            }
+        project.SyncCharacters(genders);
+        project.Annotated = true;
+        progress.Report(new AnnotationProgress(project.Lines.Count, project.Lines.Count, TokenUsage.Zero));
+        return Task.FromResult(new TokenUsage(100, 50, 0, 0));
+    }
+
+    public async Task<DubbingResult> RunAsync(DubbingRequest request, AppSettings settings, IProgress<DubbingProgress> progress, CancellationToken ct)
+    {
+        Requests.Add(request);
+        SettingsSeen.Add(settings);
+        progress.Report(new DubbingProgress("voces", 1, 2, "voz 1"));
+        if (RunGate is not null)
+            await RunGate.Task.WaitAsync(ct);
+        if (RunError is not null)
+            throw RunError;
+        return new DubbingResult(DubbingRunner.OutputPathFor(request.VideoPath, request.Range), request.Project.Lines.Count, 1, 0, 0.1);
+    }
 }
 
 public sealed class FakeUpdates : IUpdateService
@@ -278,12 +350,13 @@ public sealed class Harness
     public FakeDialogs Dialogs { get; } = new();
     public FakeActivityLog ActivityLog { get; } = new();
     public FakeUpdates Updates { get; } = new();
+    public FakeDubbing Dubbing { get; } = new();
     /// <summary>Borradores en una carpeta temporal (nunca en %LOCALAPPDATA%).</summary>
     public string ReviewRoot { get; } = Path.Combine(Path.GetTempPath(), "subtool-review-tests-" + Guid.NewGuid().ToString("N"));
     public ReviewServiceAdapter Reviews => _reviews ??= new ReviewServiceAdapter(new SubtitleTool.Core.Review.ReviewStore(ReviewRoot));
     private ReviewServiceAdapter? _reviews;
 
-    public MainViewModel CreateMain() => new(Settings, Library, Processing, Glossary, Doctor, ApiKeys, Dialogs, ActivityLog, Updates, Reviews);
+    public MainViewModel CreateMain() => new(Settings, Library, Processing, Glossary, Doctor, ApiKeys, Dialogs, ActivityLog, Updates, Reviews, Dubbing);
 
     /// <summary>Carpeta falsa con N videos.</summary>
     public IReadOnlyList<string> AddFolder(string folder, params string[] names)
